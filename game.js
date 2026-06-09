@@ -53,6 +53,24 @@ function randInt(a,b){return Math.floor(rand(a,b+1))}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 function lerp(a,b,t){return a+(b-a)*t}
 
+// ========== TIGHT BOUNDING BOX ==========
+function computeTightBoundingBox(src){
+  const w=src.naturalWidth||src.width, h=src.naturalHeight||src.height;
+  const c=document.createElement('canvas');
+  c.width=w; c.height=h;
+  const cx=c.getContext('2d');
+  cx.drawImage(src,0,0);
+  const d=cx.getImageData(0,0,w,h).data;
+  let minX=w,minY=h,maxX=0,maxY=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    if(d[(y*w+x)*4+3]>0){
+      if(x<minX)minX=x; if(x>maxX)maxX=x;
+      if(y<minY)minY=y; if(y>maxY)maxY=y;
+    }
+  }
+  return minX>maxX?{x:0,y:0,width:w,height:h}:{x:minX,y:minY,width:maxX-minX+1,height:maxY-minY+1};
+}
+
 // ========== CHROMA KEY ==========
 function createChromaKeyedImage(srcImg, keyColor, tolerance) {
   keyColor=keyColor||[0,255,0]; tolerance=tolerance||80;
@@ -116,7 +134,7 @@ class AssetManager {
       const data = parseObstacleName(f);
       if (!data) continue;
       const img = await this.load(ASSETS + 'obc/' + f,f,true);
-      this.obstacles.push({ ...data, img, file:f });
+      this.obstacles.push({ ...data, img, file:f, tightBBox: img?computeTightBoundingBox(img):null });
       done(f);
     }
 
@@ -462,8 +480,18 @@ class ObstacleManager {
 
   checkCollision(birdBounds) {
     for(const o of this.active){
-      if(birdBounds.x<o.x+o.dim.w&&birdBounds.x+birdBounds.w>o.x&&
-         birdBounds.y<o.y+o.dim.h&&birdBounds.y+birdBounds.h>o.y) return true;
+      const bbox=o.data.tightBBox;
+      if(bbox){
+        const scX=o.dim.w/(o.img.naturalWidth||o.img.width||o.dim.w);
+        const scY=o.dim.h/(o.img.naturalHeight||o.img.height||o.dim.h);
+        const tx=o.x+bbox.x*scX, ty=o.y+bbox.y*scY;
+        const tw=bbox.width*scX, th=bbox.height*scY;
+        if(birdBounds.x<tx+tw&&birdBounds.x+birdBounds.w>tx&&
+           birdBounds.y<ty+th&&birdBounds.y+birdBounds.h>ty) return true;
+      } else {
+        if(birdBounds.x<o.x+o.dim.w&&birdBounds.x+birdBounds.w>o.x&&
+           birdBounds.y<o.y+o.dim.h&&birdBounds.y+birdBounds.h>o.y) return true;
+      }
     }
     return false;
   }
@@ -612,15 +640,40 @@ class Game {
     this.chapterTimeout=null;
     this.webcamRafId=null;
     this.chapterNotif=null;
+    this.currentSkyColor='#78A7FF';
 
     this.setupUI();
     this.setupControls();
   }
 
   setupControls() {
-    const fullFlap=()=>{if(this.state==='playing')this.bird.flap(true)};
-    this.canvas.addEventListener('click',fullFlap);
-    this.canvas.addEventListener('touchstart',(e)=>{e.preventDefault();fullFlap()},{passive:false});
+    this.canvas.addEventListener('click',()=>{
+      if(this.state==='gameover'||this.state==='over'){
+        const goEl=document.getElementById('gameOver');
+        if(goEl)goEl.style.display='none';
+        document.getElementById('playBtn').classList.remove('hidden');
+        document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
+        document.getElementById('char-select').style.display='flex';
+        this.handTracker.stop();
+        this.state='menu';
+        return;
+      }
+      if(this.state==='playing') this.bird.flap(true);
+    });
+    this.canvas.addEventListener('touchstart',(e)=>{
+      e.preventDefault();
+      if(this.state==='gameover'||this.state==='over'){
+        const goEl=document.getElementById('gameOver');
+        if(goEl)goEl.style.display='none';
+        document.getElementById('playBtn').classList.remove('hidden');
+        document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
+        document.getElementById('char-select').style.display='flex';
+        this.handTracker.stop();
+        this.state='menu';
+        return;
+      }
+      if(this.state==='playing') this.bird.flap(true);
+    },{passive:false});
   }
 
   setupUI() {
@@ -803,6 +856,9 @@ class Game {
     if(!w||!h) return;
 
     const skyColor=this.currentChapter<=CHAPTERS.length?getSkyColor(this.currentChapter,this.chapterProgress):'rgb(17,17,71)';
+    this.currentSkyColor=skyColor;
+    const ga=document.getElementById('gameArea');
+    if(ga) ga.style.background=skyColor;
     const grad=ctx.createLinearGradient(0,0,0,h);
     grad.addColorStop(0,skyColor);
     grad.addColorStop(0.7,adjustBrightness(skyColor,-40));
@@ -870,8 +926,8 @@ class Game {
 
   updateUI() {
     document.getElementById('scoreDisplay').textContent=this.score;
-    const sd2=document.getElementById('scoreDisplay2');
-    if(sd2) sd2.textContent='Score: '+this.score;
+    const scrEl=document.getElementById('score');
+    if(scrEl) scrEl.textContent='Score: '+this.score;
     document.getElementById('highScoreDisplay').textContent=this.highScore;
     document.getElementById('chapterDisplay').textContent=this.currentChapter;
     const elapsed=(performance.now()-this.chapterStartTime)/1000;
@@ -904,19 +960,8 @@ class Game {
     ctx.fillText('Score: '+this.score,w/2,h/2+30);
     ctx.shadowBlur=0;
 
-    const go2=document.getElementById('gameOver2');
-    if(go2){
-      go2.style.display='block';
-      go2.onclick=()=>{
-        go2.style.display='none';
-        document.getElementById('playBtn').classList.remove('hidden');
-        document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
-        document.getElementById('char-select').style.display='flex';
-        game.handTracker.stop();
-        game.state='menu';
-      };
-    }
-
+    const goEl=document.getElementById('gameOver');
+    if(goEl) goEl.style.display='block';
     document.getElementById('playBtn').classList.remove('hidden');
     document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
     document.getElementById('char-select').style.display='flex';
@@ -999,8 +1044,8 @@ async function init() {
 
   document.getElementById('btnRestart').addEventListener('click',()=>{
     if(game.state==='gameover'||game.state==='playing'){
-      const go2=document.getElementById('gameOver2');
-      if(go2) go2.style.display='none';
+      const goEl=document.getElementById('gameOver');
+      if(goEl) goEl.style.display='none';
       document.getElementById('playBtn').classList.remove('hidden');
       document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
       document.getElementById('char-select').style.display='flex';

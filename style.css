@@ -2,13 +2,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 body{background:#1a1a2e;overflow:hidden;font-family:'Press Start 2P',monospace;color:#fff;image-rendering:pixelated;-webkit-font-smoothing:none;width:100vw;height:100vh}
 #mainContainer{display:flex;width:100vw;height:100vh;background:#0d0d1a}
-#gameArea{width:70%;height:100vh;display:flex;justify-content:center;align-items:center;position:relative;background:#000}
+#gameArea{width:70%;height:100vh;display:flex;justify-content:center;align-items:center;position:relative;overflow:hidden;background:#78A7FF}
 #gameCanvas{display:block;image-rendering:pixelated}
 #ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;color:#fff;z-index:5}
 #chapterText{font-size:clamp(24px,5vw,52px);font-weight:bold;text-shadow:3px 3px 6px rgba(0,0,0,0.8);opacity:0;transition:opacity 0.4s;margin-top:60px;letter-spacing:2px}
-#gameOver2{display:none;font-size:clamp(20px,4vw,40px);background:rgba(0,0,0,0.75);padding:25px 40px;border-radius:15px;text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;backdrop-filter:blur(5px)}
-#gameOver2 small{font-size:clamp(14px,2vw,18px);opacity:0.8}
-#scoreDisplay2{position:absolute;top:20px;right:20px;font-size:clamp(16px,3vw,24px);color:#fff;text-shadow:2px 2px 4px #000;z-index:10}
+#gameOver{display:none;font-size:clamp(20px,4vw,40px);background:rgba(0,0,0,0.75);padding:25px 40px;border-radius:15px;text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;backdrop-filter:blur(5px)}
+#gameOver small{font-size:clamp(14px,2vw,18px);opacity:0.8}
+#score{position:absolute;top:20px;right:20px;font-size:clamp(16px,3vw,24px);color:#fff;text-shadow:2px 2px 4px #000;z-index:10}
 #controlArea{width:30%;height:100vh;background:#12122a;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;padding:20px;border-left:2px solid #2a2a4a}
 .game-title{font-size:clamp(16px,2vw,24px);line-height:1.3;color:#ffd700;text-shadow:3px 3px 0 #8b6914;margin-bottom:8px;text-align:center}
 #logoCanvas{display:block;margin:5px auto;width:clamp(120px,15vw,200px);height:auto;image-rendering:pixelated}
