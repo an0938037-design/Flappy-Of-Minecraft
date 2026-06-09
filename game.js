@@ -261,7 +261,6 @@ class Bird {
     this.maxFallSpeed=0;
     this.cooldown=0;
     this.cooldownMax=0.4;
-    this.rotation=0;
   }
 
   init(canvasW,canvasH) {
@@ -275,14 +274,12 @@ class Bird {
     this.jumpFull=400*h6;
     this.jumpHand=320*h6;
     this.maxFallSpeed=400*h6;
-    this.rotation=0;
     this.cooldown=0;
   }
 
   flap(fullForce) {
     if(this.cooldown>0) return;
     this.vy=-(fullForce!==false?this.jumpFull:this.jumpHand);
-    this.rotation=-0.4;
     this.cooldown=this.cooldownMax;
   }
 
@@ -293,16 +290,13 @@ class Bird {
     if(this.cooldown>0) this.cooldown-=dt;
     if(this.y<0){this.y=0;this.vy=0}
     if(groundY!==undefined&&this.y+this.h>=groundY) return true;
-    this.rotation+=(0-this.rotation)*5*dt;
-    if(this.rotation>1.2) this.rotation=1.2;
-    if(this.rotation<-0.4) this.rotation=-0.4;
     return false;
   }
 
   render(ctx,charId) {
     ctx.save();
     ctx.translate(this.x+this.w/2,this.y+this.h/2);
-    ctx.rotate(this.rotation);
+    ctx.rotate(clamp(this.vy*0.05,-0.3,0.5));
     const img=assets?assets.getCrt(charId||'bee'):null;
     if(img){
       try{ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h)}catch(e){
@@ -319,7 +313,7 @@ class Bird {
   }
 
   getBounds() {
-    return { x:this.x+3, y:this.y+3, w:this.w-6, h:this.h-6 };
+    return { x:this.x+5, y:this.y+5, w:this.w-10, h:this.h-10 };
   }
 }
 
@@ -468,10 +462,8 @@ class ObstacleManager {
 
   checkCollision(birdBounds) {
     for(const o of this.active){
-      const pad=3;
-      const ob={ x:o.x+pad, y:o.y+pad, w:o.dim.w-pad*2, h:o.dim.h-pad*2 };
-      if(birdBounds.x<ob.x+ob.w&&birdBounds.x+birdBounds.w>ob.x&&
-         birdBounds.y<ob.y+ob.h&&birdBounds.y+birdBounds.h>ob.y) return true;
+      if(birdBounds.x<o.x+o.dim.w&&birdBounds.x+birdBounds.w>o.x&&
+         birdBounds.y<o.y+o.dim.h&&birdBounds.y+birdBounds.h>o.y) return true;
     }
     return false;
   }
@@ -479,7 +471,10 @@ class ObstacleManager {
   getPassed(birdX) {
     let count=0;
     for(const o of this.active){
-      if(!o.passed&&o.x+o.dim.w<birdX){ o.passed=true; count++; }
+      if(!o.passed&&o.x+o.dim.w<birdX){
+        o.passed=true;
+        if(o.data.pos==='t'||o.data.pos==='b') count++;
+      }
     }
     return count;
   }
