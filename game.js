@@ -22,6 +22,9 @@ const GROUND_Y = LOGICAL_H - GROUND_LAYERS * BLOCK_SIZE;
 const BIRD_SIZE = 45;
 const OBSTACLE_MAX_PX = 200;
 const OBSTACLE_MAX_PCT = 0.2;
+const MAX_HEIGHT_BOTTOM = 300;
+const MAX_HEIGHT_MID = 150;
+const MAX_HEIGHT_TOP = 200;
 const GAP_SIZE = 450;
 const BASE_SPAWN_DIST = 875;
 
@@ -343,13 +346,15 @@ class ObstacleManager {
     this.zoneSpawnCounts={};
   }
 
-  getScaledDims(img,canvasW) {
+  getScaledDims(img,canvasW,pos) {
     const maxW=Math.min(OBSTACLE_MAX_PX,Math.floor(canvasW*OBSTACLE_MAX_PCT));
     const nw=img.naturalWidth||img.width||50;
     const nh=img.naturalHeight||img.height||50;
-    const targetW=Math.min(maxW,nw);
-    const aspect=nh/nw;
-    return {w:targetW,h:targetW*aspect};
+    let targetW=Math.min(maxW,nw);
+    let targetH=targetW*nh/nw;
+    const maxH={b:MAX_HEIGHT_BOTTOM,m:MAX_HEIGHT_MID,t:MAX_HEIGHT_TOP}[pos]||MAX_HEIGHT_BOTTOM;
+    if(targetH>maxH){targetH=maxH;targetW=targetH*nw/nh}
+    return {w:targetW,h:targetH};
   }
 
   generateZone(chapterId) {
@@ -421,7 +426,7 @@ class ObstacleManager {
     const img=data.img;
     if(!img) return;
 
-    const dim=this.getScaledDims(img,canvasW);
+    const dim=this.getScaledDims(img,canvasW,data.pos);
     const groundY=GROUND_Y;
     const birdW=BIRD_SIZE;
 
