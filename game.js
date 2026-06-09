@@ -685,6 +685,7 @@ class Game {
     this.speedMult=1;
     this.hpMaxMult=1;
     this.hitCooldown=0;
+    this.healTimer=0;
 
     this.setupUI();
     this.setupControls();
@@ -803,6 +804,7 @@ class Game {
     this.hp=this.maxHp;
     this.speedMult=1;
     this.hpMaxMult=1;
+    this.healTimer=0;
     this.currentChapter=1;
     this.currentZone=0;
     this.chapterProgress=0;
@@ -866,6 +868,17 @@ class Game {
         this.speedMult*=1.02;
         this.hpMaxMult*=1.5;
         this.bird.vy=-this.bird.jumpFull*1.5;
+      }
+
+      if(this.currentChapter>=2){
+        this.healTimer+=dt;
+        while(this.healTimer>=5){
+          this.healTimer-=5;
+          if(this.hp<this.maxHp){
+            this.hp++;
+            this.speedMult*=0.98;
+          }
+        }
       }
 
       this.obstacles.update(dt,this.currentSpeed);
@@ -1079,6 +1092,7 @@ class Game {
     this.chapterProgress=0;
     this.oreTimer=0;
     this.hp=this.maxHp;
+    this.healTimer=0;
     this._villageObs=new Set();
 
     const chIdx=this.endless?Math.min(this.currentChapter,CHAPTERS.length):this.currentChapter;
