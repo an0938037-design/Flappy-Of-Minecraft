@@ -1,10 +1,5 @@
 const ASSETS = 'pjt1/';
 
-const OBSTACLE_FILES = [
-  'bn1-12-a-2.png','bn1-12-b-2.png','bv1-1-o-3.png','bv2-2-a-3.png',
-  'bv3-12-a-3.png','bv3-2-b-3.png','mn1-2-o-4.png','mv2-2-b-3.png','tn1-2-o-4.png'
-];
-
 const CHAPTER_DURATION = 40;
 const MIN_SPEED_CH1 = 375;
 const MAX_SPEED_CH1 = 625;
@@ -121,8 +116,8 @@ class AssetManager {
     });
   }
 
-  async init(progressCb) {
-    const total=Object.keys(GROUND_FILES).length+OBSTACLE_FILES.length+Object.keys(CHAR_MAP).length*2+1;
+  async init(obstacleFiles,progressCb) {
+    const total=Object.keys(GROUND_FILES).length+obstacleFiles.length+Object.keys(CHAR_MAP).length*2+1;
     let loaded=0;
     const done=(label)=>{loaded++;if(progressCb)progressCb(Math.floor(loaded/total*100),label)};
 
@@ -133,7 +128,7 @@ class AssetManager {
     });
     await Promise.all(groundPromises);
 
-    for (const f of OBSTACLE_FILES) {
+    for (const f of obstacleFiles) {
       const data = parseObstacleName(f);
       if (!data) continue;
       const img = await this.load(ASSETS + 'obc/' + f,f,true);
@@ -1096,7 +1091,9 @@ let game;
 
 async function init() {
   const progressCb=window._loadingPct||function(){};
-  await assets.init(progressCb);
+  let obstacleFiles=[];
+  try{obstacleFiles=await (await fetch('obstacles.json')).json()}catch(e){obstacleFiles=[]}
+  await assets.init(obstacleFiles,progressCb);
 
   const canvas=document.getElementById('gameCanvas');
   const setCanvasSize=()=>{
