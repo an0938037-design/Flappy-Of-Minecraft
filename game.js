@@ -735,6 +735,8 @@ class Game {
   }
 
   async startGame() {
+    const goEl=document.getElementById('gameOver');
+    if(goEl) goEl.style.display='none';
     const playBtn=document.getElementById('playBtn');
     playBtn.classList.add('hidden');
     document.getElementById('webcam-area').style.display='flex';
