@@ -6,29 +6,24 @@ const OBSTACLE_FILES = [
 ];
 
 const CHAPTER_DURATION = 40;
-const MIN_SPEED_CH1 = 150;
-const MAX_SPEED_CH1 = 250;
+const MIN_SPEED_CH1 = 375;
+const MAX_SPEED_CH1 = 625;
 
 const CHAPTERS = [
   { id:1, duration:CHAPTER_DURATION },
   { id:2, duration:CHAPTER_DURATION }
 ];
 
-const LOGICAL_W = 400;
+const LOGICAL_W = 1000;
 const LOGICAL_H = 600;
 const BLOCK_SIZE = 40;
 const GROUND_LAYERS = 5;
 const GROUND_Y = LOGICAL_H - GROUND_LAYERS * BLOCK_SIZE;
 const BIRD_SIZE = 45;
-const OBSTACLE_MAX_PX = 150;
-const OBSTACLE_MAX_PCT = 0.375;
-const GAP_SIZE = 180;
-const BASE_SPAWN_DIST = 350;
-
-function aspectFit(cw,ch,iw,ih){
-  const r=iw/ih;
-  return cw/ch>r?{w:ch*r,h:ch}:{w:cw,h:cw/r};
-}
+const OBSTACLE_MAX_PX = 200;
+const OBSTACLE_MAX_PCT = 0.2;
+const GAP_SIZE = 450;
+const BASE_SPAWN_DIST = 875;
 
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
@@ -284,7 +279,7 @@ class Bird {
   init(canvasW,canvasH) {
     const s=Math.max(8,BIRD_SIZE);
     this.w=s; this.h=s;
-    this.x=canvasW*0.2;
+    this.x=150;
     this.y=canvasH*0.35;
     this.vy=0;
     const h6=canvasH/600;
@@ -855,9 +850,14 @@ class Game {
     const w=this.canvas.width, h=this.canvas.height;
     if(!w||!h) return;
 
+    const ga=document.getElementById('gameArea');
+    const scaleX=ga?ga.clientWidth/w:1;
+    const scaleY=ga?ga.clientHeight/h:1;
+    ctx.save();
+    ctx.scale(scaleX,scaleY);
+
     const skyColor=this.currentChapter<=CHAPTERS.length?getSkyColor(this.currentChapter,this.chapterProgress):'rgb(17,17,71)';
     this.currentSkyColor=skyColor;
-    const ga=document.getElementById('gameArea');
     if(ga) ga.style.background=skyColor;
     const grad=ctx.createLinearGradient(0,0,0,h);
     grad.addColorStop(0,skyColor);
@@ -884,6 +884,7 @@ class Game {
       ctx.fillText(this.chapterNotif.text,w/2,h*0.18);
       ctx.restore();
     }
+    ctx.restore();
   }
 
   renderWebcamFeed() {
@@ -1024,12 +1025,8 @@ async function init() {
   const setCanvasSize=()=>{
     canvas.width=LOGICAL_W;
     canvas.height=LOGICAL_H;
-    const ga=document.getElementById('gameArea');
-    const aw=ga?ga.clientWidth:window.innerWidth*0.7;
-    const ah=ga?ga.clientHeight:window.innerHeight;
-    const fit=aspectFit(aw,ah,LOGICAL_W,LOGICAL_H);
-    canvas.style.width=Math.floor(fit.w)+'px';
-    canvas.style.height=Math.floor(fit.h)+'px';
+    canvas.style.width='100%';
+    canvas.style.height='100%';
   };
   setCanvasSize();
   setTimeout(setCanvasSize,100);
