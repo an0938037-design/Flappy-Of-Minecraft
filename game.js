@@ -6,8 +6,8 @@ const OBSTACLE_FILES = [
 ];
 
 const CHAPTERS = [
-  { id:1, duration:40, baseMinSpeed:150, baseMaxSpeed:200 },
-  { id:2, duration:40, baseMinSpeed:225, baseMaxSpeed:300 }
+  { id:1, duration:120, baseMinSpeed:150, baseMaxSpeed:200 },
+  { id:2, duration:120, baseMinSpeed:225, baseMaxSpeed:300 }
 ];
 
 const CHAR_MAP = {
@@ -120,18 +120,18 @@ class Terrain {
 
   generateColumn(idx) {
     const layers=[];
-    layers[0]='se0'; layers[1]='se0';
+    layers[0]='gs0';
     const r2=Math.random();
-    let l2=r2<0.15?'cl0':r2<0.3?'se0':'dt0';
-    if(l2==='cl0'&&this.oreCount.cl0>=this.oreMax.cl0) l2='dt0';
-    else if(l2==='cl0') this.oreCount.cl0++;
-    layers[2]=l2;
+    let l1=r2<0.15?'cl0':r2<0.3?'se0':'dt0';
+    if(l1==='cl0'&&this.oreCount.cl0>=this.oreMax.cl0) l1='dt0';
+    else if(l1==='cl0') this.oreCount.cl0++;
+    layers[1]=l1;
     const r3=Math.random();
-    let l3=r3<0.12?'in0':r3<0.25?'se0':'dt0';
-    if(l3==='in0'&&this.oreCount.in0>=this.oreMax.in0) l3='dt0';
-    else if(l3==='in0') this.oreCount.in0++;
-    layers[3]=l3;
-    layers[4]='gs0';
+    let l2=r3<0.12?'in0':r3<0.25?'se0':'dt0';
+    if(l2==='in0'&&this.oreCount.in0>=this.oreMax.in0) l2='dt0';
+    else if(l2==='in0') this.oreCount.in0++;
+    layers[2]=l2;
+    layers[3]='se0'; layers[4]='se0';
     return layers;
   }
 
@@ -143,22 +143,22 @@ class Terrain {
   }
 
   setPath(startX,endX) {
-    const bs=this.blockSize||Math.floor((800*0.2)/5);
+    const bs=this.blockSize||Math.floor(800*0.04);
     if(bs<4) return;
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
-      if(this.cols.has(i)){const l=this.cols.get(i);if(l[4]==='gs0')l[4]='gs1'}
+      if(this.cols.has(i)){const l=this.cols.get(i);if(l[0]==='gs0')l[0]='gs1'}
     }
   }
 
   revertPath(startX,endX) {
-    const bs=this.blockSize||Math.floor((800*0.2)/5);
+    const bs=this.blockSize||Math.floor(800*0.04);
     if(bs<4) return;
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
-      if(this.cols.has(i)){const l=this.cols.get(i);if(l[4]==='gs1')l[4]='gs0'}
+      if(this.cols.has(i)){const l=this.cols.get(i);if(l[0]==='gs1')l[0]='gs0'}
     }
   }
 
@@ -697,8 +697,8 @@ class Game {
       this.bird.update(dt);
 
       this.obstacles.update(dt,this.currentSpeed);
-      const lastX=this.obstacles.active.length?this.obstacles.active[this.obstacles.active.length-1].x:0;
-      if(!this.obstacles.active.length||lastX<this.canvas.width-this.obstacles.nextSpawnX){
+      const lastObs=this.obstacles.active[this.obstacles.active.length-1];
+      if(!lastObs||lastObs.x+lastObs.img.naturalWidth<this.canvas.width){
         this.obstacles.spawnNext(this.canvas.width,this.canvas.height);
       }
 
@@ -856,27 +856,17 @@ class Game {
     }
 
     this.state='chaptercomplete';
-    const ctx=this.ctx;
-    ctx.fillStyle='rgba(0,0,0,0.5)';
-    ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-    ctx.fillStyle='#4f4';
-    ctx.font='30px "Press Start 2P",monospace';
-    ctx.textAlign='center';
-    ctx.fillText('CHAPTER '+this.currentChapter,this.canvas.width/2,this.canvas.height/2-20);
-    ctx.fillText('COMPLETE!',this.canvas.width/2,this.canvas.height/2+30);
 
-    this.chapterTimeout=setTimeout(()=>{
-      this.chapterTimeout=null;
-      this.currentChapter++;
-      this.currentZone=0;
-      this.chapterProgress=0;
-      this.oreTimer=0;
-      this._villageObs=new Set();
+    this.currentChapter++;
+    this.currentZone=0;
+    this.chapterProgress=0;
+    this.oreTimer=0;
+    this._villageObs=new Set();
 
-      const ch=CHAPTERS[this.currentChapter-1];
+    const ch=CHAPTERS[this.currentChapter-1];
+    if(ch){
       this.chapterTimer=ch.duration;
       this.currentSpeed=ch.baseMinSpeed;
-
       this.terrain.resetOreCount();
       this.terrain.cols.clear();
       this.terrain.offset=0;
@@ -884,12 +874,11 @@ class Game {
       this.obstacles.nextSpawnX=this.canvas.width+50;
       this.bird.init(this.canvas.width,this.canvas.height);
       this.bird.vy=0;
-
       this.clouds=[];
       for(let i=0;i<6;i++) this.clouds.push(new Cloud(this.canvas.width,this.canvas.height));
+    }
 
-      this.state='playing';
-    },1500);
+    this.state='playing';
   }
 }
 
