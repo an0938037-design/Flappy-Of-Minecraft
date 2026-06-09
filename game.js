@@ -117,7 +117,7 @@ class AssetManager {
   }
 
   async init(obstacleFiles,progressCb) {
-    const total=Object.keys(GROUND_FILES).length+obstacleFiles.length+Object.keys(CHAR_MAP).length*2+1;
+    const total=Object.keys(GROUND_FILES).length+obstacleFiles.length+Object.keys(CHAR_MAP).length*2+2;
     let loaded=0;
     const done=(label)=>{loaded++;if(progressCb)progressCb(Math.floor(loaded/total*100),label)};
 
@@ -145,6 +145,9 @@ class AssetManager {
 
     this.images.clouds = await this.load(ASSETS + 'clouds/cloud1.png','cloud');
     done('cloud');
+
+    this.images.hp = await this.load(ASSETS + 'hp.png','hp');
+    done('hp');
 
     this.ready = true;
   }
@@ -310,7 +313,11 @@ class Bird {
     this.y+=this.vy*dt;
     if(this.cooldown>0) this.cooldown-=dt;
     if(this.y<0){this.y=0;this.vy=0}
-    if(groundY!==undefined&&this.y+this.h>=groundY) return true;
+    if(groundY!==undefined&&this.y+this.h>=groundY){
+      this.y=groundY-this.h;
+      this.vy=0;
+      return true;
+    }
     return false;
   }
 
@@ -514,13 +521,13 @@ class ObstacleManager {
         const tx=o.x+bbox.x*scX+inset, ty=o.y+bbox.y*scY+inset;
         const tw=Math.max(1,bbox.width*scX-inset*2), th=Math.max(1,bbox.height*scY-inset*2);
         if(birdBounds.x<tx+tw&&birdBounds.x+birdBounds.w>tx&&
-           birdBounds.y<ty+th&&birdBounds.y+birdBounds.h>ty) return true;
+           birdBounds.y<ty+th&&birdBounds.y+birdBounds.h>ty) return o;
       } else {
         if(birdBounds.x+inset<o.x+o.dim.w-inset&&birdBounds.x+birdBounds.w-inset>o.x+inset&&
-           birdBounds.y+inset<o.y+o.dim.h-inset&&birdBounds.y+birdBounds.h-inset>o.y+inset) return true;
+           birdBounds.y+inset<o.y+o.dim.h-inset&&birdBounds.y+birdBounds.h-inset>o.y+inset) return o;
       }
     }
-    return false;
+    return null;
   }
 
   getPassed(birdX) {
@@ -673,6 +680,10 @@ class Game {
     this.currentSkyColor='#78A7FF';
     this.groundSeed=0;
     this.endless=false;
+    this.maxHp=3;
+    this.hp=3;
+    this.speedMult=1;
+    this.hpMaxMult=1;
 
     this.setupUI();
     this.setupControls();
@@ -788,6 +799,9 @@ class Game {
     if(goEl) goEl.style.display='none';
     this.state='playing';
     this.score=0;
+    this.hp=this.maxHp;
+    this.speedMult=1;
+    this.hpMaxMult=1;
     this.currentChapter=1;
     this.currentZone=0;
     this.chapterProgress=0;
@@ -833,8 +847,8 @@ class Game {
       const dur=ch?ch.duration:CHAPTER_DURATION;
       this.chapterProgress=Math.min(1,elapsed/dur);
       const minS=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
-      const maxS=MAX_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
-      this.currentSpeed=minS+(maxS-minS)*this.chapterProgress;
+      const maxS=MAX_SPEED_CH1*Math.pow(1.5,this.currentChapter-1)*this.hpMaxMult;
+      this.currentSpeed=(minS+(maxS-minS)*this.chapterProgress)*this.speedMult;
 
       this.terrain.update(dt,this.currentSpeed*0.5);
       this.oreTimer+=dt;
@@ -842,7 +856,13 @@ class Game {
       if(curZone!==this.terrain.zoneOreReset){this.groundSeed=Math.floor(Math.random()*10000);this.terrain.setSeed(this.groundSeed);this.terrain.zoneOreReset=curZone}
 
       const groundY=GROUND_Y;
-      if(this.bird.update(dt,groundY)){ this.gameOver(); return; }
+      if(this.bird.update(dt,groundY)){
+        if(this.hp>0){
+          this.bird.vy=-this.bird.jumpFull*0.5;
+        } else {
+          this.gameOver(); return;
+        }
+      }
 
       this.obstacles.update(dt,this.currentSpeed);
       const lastObs=this.obstacles.active[this.obstacles.active.length-1];
@@ -853,7 +873,18 @@ class Game {
       this.score+=this.obstacles.getPassed(this.bird.x);
 
       const bb=this.bird.getBounds();
-      if(this.obstacles.checkCollision(bb)){ this.gameOver(); return; }
+      const hitObs=this.obstacles.checkCollision(bb);
+      if(hitObs){
+        if(this.hp>0){
+          this.hp--;
+          const idx=this.obstacles.active.indexOf(hitObs);
+          if(idx>=0) this.obstacles.active.splice(idx,1);
+          this.speedMult*=1.02;
+          this.hpMaxMult*=1.5;
+        } else {
+          this.gameOver(); return;
+        }
+      }
 
       if(elapsed>=dur||this.obstacles.zonesCompleted()>=4){
         this.chapterComplete();
@@ -929,6 +960,16 @@ class Game {
       ctx.shadowColor='#000';ctx.shadowBlur=8;
       ctx.fillText(this.chapterNotif.text,w/2,h*0.18);
       ctx.restore();
+    }
+
+    const hpImg=assets?assets.images.hp:null;
+    if(hpImg&&(this.state==='playing'||this.state==='gameover')){
+      const hpSize=30;
+      for(let i=0;i<this.maxHp;i++){
+        ctx.globalAlpha=i<this.hp?1:0.25;
+        ctx.drawImage(hpImg,20+i*(hpSize+8),20,hpSize,hpSize);
+      }
+      ctx.globalAlpha=1;
     }
     ctx.restore();
   }
@@ -1035,6 +1076,7 @@ class Game {
     this.currentZone=0;
     this.chapterProgress=0;
     this.oreTimer=0;
+    this.hp=this.maxHp;
     this._villageObs=new Set();
 
     const chIdx=this.endless?Math.min(this.currentChapter,CHAPTERS.length):this.currentChapter;
