@@ -61,12 +61,12 @@ function computeTightBoundingBox(src){
   const d=cx.getImageData(0,0,w,h).data;
   let minX=w,minY=h,maxX=0,maxY=0;
   for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-    if(d[(y*w+x)*4+3]>128){
+    if(d[(y*w+x)*4+3]>200){
       if(x<minX)minX=x; if(x>maxX)maxX=x;
       if(y<minY)minY=y; if(y>maxY)maxY=y;
     }
   }
-  return minX>maxX?{x:0,y:0,width:w,height:h}:{x:minX,y:minY,width:maxX-minX+1,height:maxY-minY+1};
+  return minX>maxX?null:{x:minX+3,y:minY+3,width:Math.max(1,maxX-minX-5),height:Math.max(1,maxY-minY-5)};
 }
 
 // ========== CHROMA KEY ==========
@@ -281,7 +281,7 @@ class Bird {
     this.jumpHand=0;
     this.maxFallSpeed=0;
     this.cooldown=0;
-    this.cooldownMax=0.15;
+    this.cooldownMax=0.2;
   }
 
   init(canvasW,canvasH) {
@@ -334,7 +334,7 @@ class Bird {
   }
 
   getBounds() {
-    return { x:this.x+5, y:this.y+5, w:this.w-10, h:this.h-10 };
+    return { x:this.x+8, y:this.y+8, w:this.w-16, h:this.h-16 };
   }
 }
 
