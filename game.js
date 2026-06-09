@@ -2,7 +2,7 @@ const ASSETS = 'pjt1/';
 
 const OBSTACLE_FILES = [
   'bn1-12-a-2.png','bn1-12-b-2.png','bv1-1-o-3.png','bv2-2-a-3.png',
-  'bv3-12-a-3.png','bv3-12-b-3.png','mn1-2-o-4.png','mv2-2-b-3.png','tn1-2-o-4.png'
+  'bv3-12-a-3.png','bv3-2-b-3.png','mn1-2-o-4.png','mv2-2-b-3.png','tn1-2-o-4.png'
 ];
 
 const CHAPTER_DURATION = 40;
@@ -30,6 +30,7 @@ const BASE_SPAWN_DIST = 800;
 const MIN_BOTTOM_PER_ZONE = 4;
 const MIN_MID_PER_ZONE = 3;
 const MIN_TOP_PER_ZONE = 3;
+const BIG_OBSTACLES = new Set(['bv1-1-o-3.png','bv2-2-a-3.png','bv3-12-a-3.png','bv3-2-b-3.png']);
 
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
@@ -356,14 +357,15 @@ class ObstacleManager {
     this.obstaclesSpawnedThisZone=0;
   }
 
-  getScaledDims(img,canvasW,pos) {
-    const maxW=Math.min(OBSTACLE_MAX_PX,Math.floor(canvasW*OBSTACLE_MAX_PCT));
+  getScaledDims(img,canvasW,pos,file) {
+    let mul=BIG_OBSTACLES.has(file)?1.5:1;
+    const maxW=Math.min(OBSTACLE_MAX_PX,Math.floor(canvasW*OBSTACLE_MAX_PCT))*mul;
     const nw=img.naturalWidth||img.width||50;
     const nh=img.naturalHeight||img.height||50;
     let targetW=Math.min(maxW,nw);
     let targetH=targetW*nh/nw;
     const maxH={b:MAX_HEIGHT_BOTTOM,m:MAX_HEIGHT_MID,t:MAX_HEIGHT_TOP}[pos]||MAX_HEIGHT_BOTTOM;
-    if(targetH>maxH){targetH=maxH;targetW=targetH*nw/nh}
+    if(targetH>maxH*mul){targetH=maxH*mul;targetW=targetH*nw/nh}
     return {w:targetW,h:targetH};
   }
 
@@ -452,7 +454,7 @@ class ObstacleManager {
     const img=data.img;
     if(!img) return;
 
-    const dim=this.getScaledDims(img,canvasW,data.pos);
+    const dim=this.getScaledDims(img,canvasW,data.pos,data.file);
     const groundY=GROUND_Y;
     const birdW=BIRD_SIZE;
 
