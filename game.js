@@ -851,7 +851,7 @@ class Game {
       this.chapterProgress=Math.min(1,elapsed/dur);
       const minS=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
       const maxS=MAX_SPEED_CH1*Math.pow(1.5,this.currentChapter-1)*this.hpMaxMult;
-      this.currentSpeed=(minS+(maxS-minS)*this.chapterProgress)+this.speedOffset;
+      this.currentSpeed=Math.min((minS+(maxS-minS)*this.chapterProgress)+this.speedOffset,200);
 
       this.terrain.update(dt,this.currentSpeed*0.5);
       this.oreTimer+=dt;
