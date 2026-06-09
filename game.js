@@ -143,7 +143,8 @@ class Terrain {
   }
 
   setPath(startX,endX) {
-    const bs=this.blockSize;
+    const bs=this.blockSize||Math.floor((800*0.2)/5);
+    if(bs<4) return;
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
@@ -152,7 +153,8 @@ class Terrain {
   }
 
   revertPath(startX,endX) {
-    const bs=this.blockSize;
+    const bs=this.blockSize||Math.floor((800*0.2)/5);
+    if(bs<4) return;
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
@@ -161,25 +163,31 @@ class Terrain {
   }
 
   render(ctx,canvasW,canvasH) {
-    const bs=this.blockSize=Math.floor((canvasH*0.2)/5);
+    if(!canvasW||!canvasH||canvasH<100) return;
+    const bs=this.blockSize=Math.max(4,Math.floor((canvasH*0.2)/5));
     const groundH=bs*5;
     const groundY=canvasH-groundH;
-    const colsVisible=Math.ceil(canvasW/bs)+3;
+    const colsVisible=Math.ceil(canvasW/bs)+4;
     const startCol=Math.floor(this.offset/bs);
 
-    for(let i=-1;i<colsVisible;i++){
+    for(let i=-2;i<colsVisible;i++){
       const colIdx=startCol+i;
       const col=this.getCol(colIdx);
       const x=i*bs-(this.offset%bs);
       for(let ly=0;ly<5;ly++){
         const y=groundY+ly*bs;
         const key=col[ly];
-        const tex=assets.getGround(key);
-        if(tex) ctx.drawImage(tex,x,y,bs,bs);
-        else {
-          ctx.fillStyle=key==='se0'?'#666':key==='dt0'?'#8B6914':key==='cl0'?'#222':key==='in0'?'#c8a06e':'#4a4';
-          ctx.fillRect(x,y,bs,bs); ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.strokeRect(x,y,bs,bs);
-          ctx.fillStyle='#fff'; ctx.font='8px monospace'; ctx.fillText('['+key+']',x+2,y+10);
+        const tex=assets?assets.getGround(key):null;
+        if(tex){
+          try{ctx.drawImage(tex,x,y,bs,bs)}catch(e){
+            ctx.fillStyle='#8B6914';ctx.fillRect(x,y,bs,bs);
+          }
+        } else {
+          const colors={'se0':'#666','dt0':'#8B6914','cl0':'#333','in0':'#c8a06e','gs0':'#4a4','gs1':'#a0845c'};
+          ctx.fillStyle=colors[key]||'#555';
+          ctx.fillRect(x,y,bs,bs);
+          ctx.strokeStyle='rgba(0,0,0,0.25)';
+          ctx.strokeRect(x+0.5,y+0.5,bs-1,bs-1);
         }
       }
     }
@@ -202,14 +210,15 @@ class Bird {
   }
 
   init(canvasW,canvasH) {
-    const bs=Math.floor((canvasH*0.2)/5);
+    if(!canvasW||!canvasH||canvasH<50) {canvasW=800;canvasH=600}
+    const bs=Math.max(4,Math.floor((canvasH*0.2)/5));
     this.w=bs*2.5;
     this.h=bs*2.5;
     this.x=canvasW*0.2;
-    this.y=canvasH*0.4;
+    this.y=canvasH*0.35;
     this.vy=0;
-    this.gravity=canvasH*0.8;
-    this.jumpForce=-canvasH*1.1;
+    this.gravity=canvasH*0.75;
+    this.jumpForce=-canvasH*1.0;
     this.rotation=0;
     this.cooldown=0;
   }
@@ -230,16 +239,21 @@ class Bird {
     if(this.rotation<-0.4) this.rotation=-0.4;
   }
 
-  render(ctx) {
+  render(ctx,charId) {
     ctx.save();
     ctx.translate(this.x+this.w/2,this.y+this.h/2);
     ctx.rotate(this.rotation);
-    const img=assets.getCrt(game.selectedChar);
-    if(img) ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
-    else {
+    const img=assets?assets.getCrt(charId||'bee'):null;
+    if(img){
+      try{ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h)}catch(e){
+        ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(0,0,this.w/2,0,Math.PI*2);ctx.fill();
+      }
+    } else {
       ctx.fillStyle='#FFD700'; ctx.beginPath();
       ctx.arc(0,0,this.w/2,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#000'; ctx.fillRect(-4,-4,8,8);
+      ctx.fillStyle='#8B6914';
+      for(let i=0;i<3;i++) ctx.fillRect(-this.w/4+10*i,-4,6,8);
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(6,-6,4,0,Math.PI*2); ctx.fill();
     }
     ctx.restore();
   }
@@ -352,8 +366,8 @@ class ObstacleManager {
 
     let y;
     switch(data.pos){
-      case 'b': y=groundY-img.naturalHeight; if(y<0) y=0; break;
-      case 'm': y=rand(canvasH*0.3,canvasH*0.7); break;
+      case 'b': y=Math.min(groundY-img.naturalHeight,canvasH-img.naturalHeight); if(y<0) y=0; break;
+      case 'm': y=Math.max(10,Math.min(rand(canvasH*0.3,canvasH*0.7),canvasH-img.naturalHeight-10)); break;
       case 't': y=0; break;
     }
 
@@ -373,6 +387,7 @@ class ObstacleManager {
 
   render(ctx) {
     for(const o of this.active){
+      if(o.data.pos==='b') continue;
       if(o.img) ctx.drawImage(o.img,o.x,o.y);
       else {
         ctx.fillStyle='#888'; ctx.fillRect(o.x,o.y,60,60);
@@ -400,6 +415,14 @@ class ObstacleManager {
       if(!o.passed&&o.x+o.img.naturalWidth<birdX){ o.passed=true; count++; }
     }
     return count;
+  }
+
+  renderFront(ctx) {
+    for(const o of this.active){
+      if(o.data.pos==='b'){
+        if(o.img) ctx.drawImage(o.img,o.x,o.y);
+      }
+    }
   }
 
   isLastObstacleOffScreen() {
@@ -516,7 +539,6 @@ class Game {
     this.highScore=parseInt(localStorage.getItem('fom_highscore')||'0');
     this.chapterTimer=0;
     this.currentSpeed=0;
-    this.collectedScore=false;
 
     this.canvas=document.getElementById('gameCanvas');
     this.ctx=this.canvas.getContext('2d');
@@ -539,6 +561,13 @@ class Game {
     this.webcamRafId=null;
 
     this.setupUI();
+    this.setupControls();
+  }
+
+  setupControls() {
+    const tapFlap=()=>{if(this.state==='playing')this.bird.flap()};
+    this.canvas.addEventListener('click',tapFlap);
+    this.canvas.addEventListener('touchstart',(e)=>{e.preventDefault();tapFlap()},{passive:false});
   }
 
   setupUI() {
@@ -619,7 +648,6 @@ class Game {
     this.currentChapter=1;
     this.currentZone=0;
     this.elapsed=0;
-    this.collectedScore=false;
 
     const ch=CHAPTERS[0];
     this.chapterTimer=ch.duration;
@@ -663,21 +691,22 @@ class Game {
       this.currentSpeed=ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*p;
 
       this.terrain.update(dt,this.currentSpeed*0.5);
-      this.terrain.zoneOreReset=Math.floor(this.elapsed/10);
-      if(Math.floor(this.elapsed/10)!==this.terrain.zoneOreReset) this.terrain.resetOreCount();
+      const curZone=Math.floor(this.elapsed/10);
+      if(curZone!==this.terrain.zoneOreReset){this.terrain.resetOreCount();this.terrain.zoneOreReset=curZone}
 
       this.bird.update(dt);
 
       this.obstacles.update(dt,this.currentSpeed);
-      if(!this.obstacles.active.length||
-         this.obstacles.active[this.obstacles.active.length-1].x<this.canvas.width-rand(200,400)){
+      const lastX=this.obstacles.active.length?this.obstacles.active[this.obstacles.active.length-1].x:0;
+      if(!this.obstacles.active.length||lastX<this.canvas.width-this.obstacles.nextSpawnX){
         this.obstacles.spawnNext(this.canvas.width,this.canvas.height);
       }
 
       this.score+=this.obstacles.getPassed(this.bird.x);
 
       const bb=this.bird.getBounds();
-      const groundY=this.canvas.height-Math.floor((this.canvas.height*0.2)/5)*5;
+      const bs=Math.max(4,Math.floor((this.canvas.height*0.2)/5));
+      const groundY=this.canvas.height-bs*5;
       if(bb.y+bb.h>=groundY||bb.y<=0){ this.gameOver(); return; }
       if(this.obstacles.checkCollision(bb)){ this.gameOver(); return; }
 
@@ -725,7 +754,8 @@ class Game {
     if(this.state==='playing'||this.state==='gameover'||this.state==='chaptercomplete'){
       this.terrain.render(ctx,w,h);
       this.obstacles.render(ctx);
-      this.bird.render(ctx);
+      this.bird.render(ctx,this.selectedChar);
+      this.obstacles.renderFront(ctx);
     }
   }
 
@@ -870,8 +900,12 @@ async function init() {
   await assets.init();
 
   const canvas=document.getElementById('gameCanvas');
-  canvas.width=canvas.offsetWidth;
-  canvas.height=canvas.offsetHeight;
+  const setCanvasSize=()=>{
+    canvas.width=Math.max(100,canvas.offsetWidth);
+    canvas.height=Math.max(100,canvas.offsetHeight);
+  };
+  setCanvasSize();
+  setTimeout(setCanvasSize,100);
 
   game=new Game();
   game.renderLogo();
@@ -879,8 +913,8 @@ async function init() {
   document.getElementById('highScoreDisplay').textContent=game.highScore;
 
   window.addEventListener('resize',()=>{
-    canvas.width=canvas.offsetWidth;
-    canvas.height=canvas.offsetHeight;
+    canvas.width=Math.max(100,canvas.offsetWidth);
+    canvas.height=Math.max(100,canvas.offsetHeight);
     if(game.bird) game.bird.init(canvas.width,canvas.height);
   });
 
