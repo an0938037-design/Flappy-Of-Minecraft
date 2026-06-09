@@ -20,12 +20,12 @@ const BLOCK_SIZE = 40;
 const GROUND_LAYERS = 5;
 const GROUND_Y = LOGICAL_H - GROUND_LAYERS * BLOCK_SIZE;
 const BIRD_SIZE = 45;
-const OBSTACLE_MAX_PX = 162;
-const OBSTACLE_MAX_PCT = 0.162;
-const MAX_HEIGHT_BOTTOM = 225;
-const MAX_HEIGHT_MID = 150;
-const MAX_HEIGHT_TOP = 175;
-const GAP_SIZE = 480;
+const OBSTACLE_MAX_PX = 243;
+const OBSTACLE_MAX_PCT = 0.243;
+const MAX_HEIGHT_BOTTOM = 338;
+const MAX_HEIGHT_MID = 225;
+const MAX_HEIGHT_TOP = 263;
+const GAP_SIZE = 720;
 const BASE_SPAWN_DIST = 800;
 const MIN_BOTTOM_PER_ZONE = 4;
 const MIN_MID_PER_ZONE = 3;
@@ -526,9 +526,9 @@ class ObstacleManager {
   getPassed(birdX) {
     let count=0;
     for(const o of this.active){
-      if(!o.passed&&o.x+o.dim.w<birdX){
-        o.passed=true;
-        if(o.data.pos==='t'||o.data.pos==='b') count++;
+        if(!o.passed&&o.x+o.dim.w<birdX){
+          o.passed=true;
+          count++;
       }
     }
     return count;
