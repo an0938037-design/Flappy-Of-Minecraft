@@ -547,13 +547,16 @@ class ObstacleManager {
 
 // ========== SKY COLOR ==========
 function getSkyColor(chapterId,progress) {
+  if(chapterId>1) return 'rgb(17,17,71)';
   const t=Math.min(1,Math.max(0,progress));
-  if(t<0.5){
-    const p=t*2;
+  if(t<0.8){
+    const p=t/0.8;
     return `rgb(${Math.round(lerp(120,255,p))},${Math.round(lerp(167,160,p))},${Math.round(lerp(255,122,p))})`;
-  } else {
-    const p=(t-0.5)*2;
+  } else if(t<0.9){
+    const p=(t-0.8)/0.1;
     return `rgb(${Math.round(lerp(255,17,p))},${Math.round(lerp(160,17,p))},${Math.round(lerp(122,71,p))})`;
+  } else {
+    return 'rgb(17,17,71)';
   }
 }
 function adjustBrightness(rgb,amt){
@@ -1037,7 +1040,6 @@ class Game {
       this.terrain.offset=0;
       this.obstacles.initZones(this.currentChapter);
       this.obstacles.nextSpawnX=LOGICAL_W+50;
-      this.bird.init(LOGICAL_W,LOGICAL_H);
       this.bird.vy=0;
       this.clouds=[];
       for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
