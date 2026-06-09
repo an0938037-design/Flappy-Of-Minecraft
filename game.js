@@ -353,8 +353,8 @@ class ObstacleManager {
   }
 
   getScaledDims(img,canvasW,pos,file) {
-    let mul=BIG_OBSTACLES.has(file)?1.5:1;
-    if(file==='bv2-2-a-3.png') mul=0.4;
+    const mulMap={'bv2-2-a-3.png':1.1,'bv3-12-a-3.png':1.8,'bv3-2-b-3.png':1.8};
+    let mul=mulMap[file]||(BIG_OBSTACLES.has(file)?1.5:1);
     const maxW=Math.min(OBSTACLE_MAX_PX,Math.floor(canvasW*OBSTACLE_MAX_PCT))*mul;
     const nw=img.naturalWidth||img.width||50;
     const nh=img.naturalHeight||img.height||50;
