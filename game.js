@@ -554,7 +554,8 @@ class Game {
     this.camera=new Camera(document.getElementById('webcamVideo'));
 
     this.lastTime=0;
-    this.elapsed=0;
+    this.chapterProgress=0;
+    this.oreTimer=0;
     this.rafId=null;
     this.countdownTimer=null;
     this.chapterTimeout=null;
@@ -647,7 +648,8 @@ class Game {
     this.score=0;
     this.currentChapter=1;
     this.currentZone=0;
-    this.elapsed=0;
+    this.chapterProgress=0;
+    this.oreTimer=0;
 
     const ch=CHAPTERS[0];
     this.chapterTimer=ch.duration;
@@ -681,17 +683,16 @@ class Game {
   }
 
   update(dt) {
-    this.elapsed+=dt;
-
     if(this.state==='playing'){
-      this.chapterTimer-=dt;
+      this.chapterTimer=Math.max(0,this.chapterTimer-dt);
 
       const ch=CHAPTERS[this.currentChapter-1];
-      const p=Math.max(0,1-this.chapterTimer/ch.duration);
-      this.currentSpeed=ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*p;
+      this.chapterProgress=ch?Math.max(0,1-this.chapterTimer/ch.duration):0;
+      this.currentSpeed=ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*this.chapterProgress;
 
       this.terrain.update(dt,this.currentSpeed*0.5);
-      const curZone=Math.floor(this.elapsed/10);
+      this.oreTimer+=dt;
+      const curZone=Math.floor(this.oreTimer/10);
       if(curZone!==this.terrain.zoneOreReset){this.terrain.resetOreCount();this.terrain.zoneOreReset=curZone}
 
       this.bird.update(dt);
@@ -745,7 +746,10 @@ class Game {
     const w=this.canvas.width, h=this.canvas.height;
     if(!w||!h) return;
 
-    const skyColor=this.dayNight.getColor(this.currentChapter,this.elapsed,this.chapterTimer+this.elapsed);
+    const ch=CHAPTERS[this.currentChapter-1];
+    const skyDuration=ch?ch.duration:40;
+    const skyElapsed=skyDuration*this.chapterProgress;
+    const skyColor=this.dayNight.getColor(this.currentChapter,skyElapsed,skyDuration);
     ctx.fillStyle=skyColor;
     ctx.fillRect(0,0,w,h);
 
@@ -801,12 +805,9 @@ class Game {
     document.getElementById('scoreDisplay').textContent=this.score;
     document.getElementById('highScoreDisplay').textContent=this.highScore;
     document.getElementById('chapterDisplay').textContent=this.currentChapter;
-    const t=Math.max(0,Math.ceil(this.chapterTimer));
-    document.getElementById('timerDisplay').textContent=t;
+    document.getElementById('timerDisplay').textContent=Math.ceil(this.chapterTimer);
     const ch=CHAPTERS[this.currentChapter-1];
-    const p=ch?Math.max(0,1-this.chapterTimer/ch.duration):0;
-    const speed=ch?ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*p:0;
-    document.getElementById('speedDisplay').textContent=(speed/100).toFixed(1);
+    if(ch) document.getElementById('speedDisplay').textContent=((ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*this.chapterProgress)/100).toFixed(1);
   }
 
   gameOver() {
@@ -869,7 +870,8 @@ class Game {
       this.chapterTimeout=null;
       this.currentChapter++;
       this.currentZone=0;
-      this.elapsed=0;
+      this.chapterProgress=0;
+      this.oreTimer=0;
       this._villageObs=new Set();
 
       const ch=CHAPTERS[this.currentChapter-1];
