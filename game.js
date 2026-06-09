@@ -506,16 +506,17 @@ class ObstacleManager {
   checkCollision(birdBounds) {
     for(const o of this.active){
       const bbox=o.data.tightBBox;
+      const inset=20;
       if(bbox){
         const scX=o.dim.w/(o.img.naturalWidth||o.img.width||o.dim.w);
         const scY=o.dim.h/(o.img.naturalHeight||o.img.height||o.dim.h);
-        const tx=o.x+bbox.x*scX, ty=o.y+bbox.y*scY;
-        const tw=bbox.width*scX, th=bbox.height*scY;
+        const tx=o.x+bbox.x*scX+inset, ty=o.y+bbox.y*scY+inset;
+        const tw=Math.max(1,bbox.width*scX-inset*2), th=Math.max(1,bbox.height*scY-inset*2);
         if(birdBounds.x<tx+tw&&birdBounds.x+birdBounds.w>tx&&
            birdBounds.y<ty+th&&birdBounds.y+birdBounds.h>ty) return true;
       } else {
-        if(birdBounds.x<o.x+o.dim.w&&birdBounds.x+birdBounds.w>o.x&&
-           birdBounds.y<o.y+o.dim.h&&birdBounds.y+birdBounds.h>o.y) return true;
+        if(birdBounds.x+inset<o.x+o.dim.w-inset&&birdBounds.x+birdBounds.w-inset>o.x+inset&&
+           birdBounds.y+inset<o.y+o.dim.h-inset&&birdBounds.y+birdBounds.h-inset>o.y+inset) return true;
       }
     }
     return false;
@@ -670,6 +671,7 @@ class Game {
     this.chapterNotif=null;
     this.currentSkyColor='#78A7FF';
     this.groundSeed=0;
+    this.endless=false;
 
     this.setupUI();
     this.setupControls();
@@ -736,6 +738,7 @@ class Game {
     const playBtn=document.getElementById('playBtn');
     playBtn.classList.add('hidden');
     document.getElementById('webcam-area').style.display='flex';
+    this.endless=document.getElementById('endlessCb').checked;
 
     try{
       await this.handTracker.init(this.camera,()=>{
@@ -1013,6 +1016,18 @@ class Game {
 
   chapterComplete() {
     if(this.chapterTimeout){clearTimeout(this.chapterTimeout);this.chapterTimeout=null}
+    if(!this.endless&&this.currentChapter>=CHAPTERS.length){
+      this.state='gameover';
+      const ctx=this.ctx;
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+      ctx.fillStyle='#ffd700';
+      ctx.font='30px "Press Start 2P",monospace';
+      ctx.textAlign='center';
+      ctx.fillText('ALL CHAPTERS',this.canvas.width/2,this.canvas.height/2-20);
+      ctx.fillText('COMPLETE!',this.canvas.width/2,this.canvas.height/2+30);
+      return;
+    }
 
     this.state='chaptercomplete';
     this.currentChapter++;
@@ -1021,7 +1036,8 @@ class Game {
     this.oreTimer=0;
     this._villageObs=new Set();
 
-    const chIdx=Math.min(this.currentChapter,CHAPTERS.length);
+    const chIdx=this.endless?Math.min(this.currentChapter,CHAPTERS.length):this.currentChapter;
+    const ch=CHAPTERS[chIdx-1];
     this.chapterStartTime=performance.now();
     this.currentSpeed=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
     this.terrain.resetOreCount();
@@ -1033,7 +1049,7 @@ class Game {
     this.clouds=[];
     for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
 
-    this.chapterNotif={text:this.currentChapter>CHAPTERS.length?'♾️ ENDLESS CH.'+this.currentChapter:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
+    this.chapterNotif={text:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
     this.state='playing';
   }
 }
@@ -1085,6 +1101,10 @@ async function init() {
   document.getElementById('btnFullscreen').addEventListener('click',()=>{
     if(document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
+  });
+
+  document.getElementById('endlessCb').addEventListener('change',function(){
+    if(game) game.endless=this.checked;
   });
 
   document.addEventListener('keydown',(e)=>{
