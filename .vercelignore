@@ -1,8 +1,7 @@
-*
-!index.html
-!style.css
-!camera.js
-!game.js
-!vercel.json
-!pjt1/
-!pjt1/**
+InventivetalentDev*/
+flappy-bird-fixed/
+*.lnk
+desktop.ini
+__pycache__/
+node_modules/
+*.txt

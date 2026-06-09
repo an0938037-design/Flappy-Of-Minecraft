@@ -30,6 +30,7 @@ function parseObstacleName(name) {
 
 function rand(a,b){return a+Math.random()*(b-a)}
 function randInt(a,b){return Math.floor(rand(a,b+1))}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 
 // ========== CHROMA KEY ==========
 function createChromaKeyedImage(srcImg, keyColor, tolerance) {
@@ -59,14 +60,21 @@ class AssetManager {
   load(src,label,doChroma) {
     return new Promise((resolve) => {
       const img = new Image();
+      let done=false;
+      const timer=setTimeout(()=>{if(!done){done=true;console.warn('⏱ Timeout:',src);resolve(null)}},5000);
       img.onload = () => {
+        if(done) return; done=true; clearTimeout(timer);
         console.log('✓ Loaded:',src);
         if(doChroma){
           try{ resolve(createChromaKeyedImage(img)); return }catch(e){}
         }
         resolve(img);
       };
-      img.onerror = () => { console.warn('✗ Failed:',src,label?'– placeholder for '+label:''); resolve(null); };
+      img.onerror = () => {
+        if(done) return; done=true; clearTimeout(timer);
+        console.warn('✗ Failed:',src,label?'– placeholder for '+label:'');
+        resolve(null);
+      };
       img.src = src;
     });
   }
@@ -160,7 +168,7 @@ class Terrain {
     if(r3<0.1&&this.oreCount.cl0<this.oreMax.cl0){l3='cl0';this.oreCount.cl0++}
     else if(r3<0.18&&this.oreCount.in0<this.oreMax.in0){l3='in0';this.oreCount.in0++}
     layers[3]=l3;
-    layers[4]='gs0';
+    layers[4]=Math.random()<0.1?'gs1':'gs0';
     return layers;
   }
 
@@ -411,16 +419,16 @@ class ObstacleManager {
 
     let y;
     switch(data.pos){
-      case 'b': y=groundY-dim.h; break;
-      case 'm': y=Math.max(10,Math.min(rand(canvasH*0.3,canvasH*0.7),canvasH-dim.h-10)); break;
+      case 'b': y=clamp(groundY-dim.h,0,groundY-dim.h); break;
+      case 'm': y=clamp(rand(canvasH*0.3,canvasH*0.7),10,groundY-dim.h-10); break;
       case 't': y=0; break;
     }
 
     const obs={ data, img, x, y, dim };
     this.active.push(obs);
 
-    const sp=rand(150,250);
-    this.nextSpawnX=x+dim.w+sp;
+    const sp=Math.floor(250*(150/Math.max(game.currentSpeed,50)));
+    this.nextSpawnX=x+dim.w+Math.max(sp,80);
   }
 
   update(dt,speed) {

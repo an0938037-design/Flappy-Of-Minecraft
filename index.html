@@ -36,22 +36,22 @@
   </div>
 </div>
 
-<canvas id="cloudGenCanvas" style="display:none"></canvas>
+  <canvas id="cloudGenCanvas" style="display:none"></canvas>
+  <div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999;font-family:'Press Start 2P',monospace;color:#ffd700;transition:opacity 0.5s">
+    <div style="font-size:clamp(14px,2vw,24px);margin-bottom:12px">Loading Assets...</div>
+    <div id="loadPct" style="font-size:clamp(28px,5vw,48px);font-weight:bold">0%</div>
+    <div style="margin-top:12px;width:clamp(120px,20vw,240px);height:8px;background:#333;border-radius:4px;overflow:hidden">
+      <div id="loadBar" style="width:0%;height:100%;background:#ffd700;border-radius:4px;transition:width 0.2s"></div>
+    </div>
+  </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script>
+window._loadingPct=function(p){var el=document.getElementById('loadPct');if(el)el.textContent=p+'%';var bar=document.getElementById('loadBar');if(bar)bar.style.width=p+'%';if(p>=100)setTimeout(function(){var o=document.getElementById('loadingOverlay');if(o){o.style.opacity='0';setTimeout(function(){if(o.parentNode)o.parentNode.removeChild(o)},500)}},400)};
+</script>
 <script src="camera.js"></script>
 <script src="game.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded',()=>{
-  const el=document.createElement('div');
-  el.id='loadingOverlay';
-  el.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999;font-family:monospace;color:#ffd700';
-  el.innerHTML='<div style="font-size:24px;margin-bottom:10px">Loading Assets...</div><div id="loadPct" style="font-size:48px;font-weight:bold">0%</div><div style="margin-top:15px;width:200px;height:6px;background:#333;border-radius:3px;overflow:hidden"><div id="loadBar" style="width:0%;height:100%;background:#ffd700;transition:width 0.3s"></div></div>';
-  document.body.appendChild(el);
-  window._loadingPct=(p)=>{document.getElementById('loadPct').textContent=p+'%';document.getElementById('loadBar').style.width=p+'%';if(p>=100){setTimeout(()=>{const o=document.getElementById('loadingOverlay');if(o){o.style.transition='opacity 0.5s';o.style.opacity='0';setTimeout(()=>o.remove(),500)}},300)}};
-});
-</script>
 </body>
 </html>
