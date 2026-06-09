@@ -2,48 +2,53 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Flappy Of Minecraft</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="container">
-  <canvas id="gameCanvas"></canvas>
-  <div id="panel">
-    <div id="panel-top">
-      <h1 class="game-title">FLAPPY OF<br>MINECRAFT</h1>
-      <canvas id="logoCanvas" width="200" height="80"></canvas>
-      <div id="char-select">
-        <button class="char-btn active" data-char="bee">BEE</button>
-        <button class="char-btn" data-char="parrot">PARROT</button>
-        <button class="char-btn" data-char="bat">BAT</button>
-      </div>
-      <button id="playBtn">▶ PLAY</button>
+<div id="mainContainer">
+  <div id="gameArea">
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+      <div id="chapterText"></div>
+      <div id="scoreDisplay2">Score: 0</div>
+      <div id="gameOver2">Game Over<br><small>Click/Tap to restart</small></div>
     </div>
-    <div id="panel-bottom">
-      <div id="webcam-area" style="display:none">
-        <video id="webcamVideo" playsinline style="display:none"></video>
-        <canvas id="webcamCanvas"></canvas>
-      </div>
-      <div id="stats">
-        <div class="stat-row"><span class="stat-label">Score</span><span class="stat-value" id="scoreDisplay">0</span></div>
-        <div class="stat-row"><span class="stat-label">Best</span><span class="stat-value" id="highScoreDisplay">0</span></div>
-        <div class="stat-row"><span class="stat-label">Chapter</span><span class="stat-value" id="chapterDisplay">1</span></div>
-        <div class="stat-row"><span class="stat-label">Time</span><span class="stat-value" id="timerDisplay">40</span></div>
-        <div class="stat-row"><span class="stat-label">Speed</span><span class="stat-value" id="speedDisplay">1.0</span></div>
-      </div>
+  </div>
+  <div id="controlArea">
+    <h1 class="game-title">FLAPPY OF<br>MINECRAFT</h1>
+    <canvas id="logoCanvas" width="200" height="80"></canvas>
+    <div id="char-select">
+      <button class="char-btn active" data-char="bee">BEE</button>
+      <button class="char-btn" data-char="parrot">PARROT</button>
+      <button class="char-btn" data-char="bat">BAT</button>
     </div>
+    <button id="playBtn">▶ PLAY</button>
+    <div id="webcam-area" style="display:none">
+      <video id="webcamVideo" playsinline style="display:none"></video>
+      <canvas id="webcamCanvas"></canvas>
+    </div>
+    <div id="stats">
+      <div class="stat-row"><span class="stat-label">Score</span><span class="stat-value" id="scoreDisplay">0</span></div>
+      <div class="stat-row"><span class="stat-label">Best</span><span class="stat-value" id="highScoreDisplay">0</span></div>
+      <div class="stat-row"><span class="stat-label">Chapter</span><span class="stat-value" id="chapterDisplay">1</span></div>
+      <div class="stat-row"><span class="stat-label">Time</span><span class="stat-value" id="timerDisplay">40</span></div>
+      <div class="stat-row"><span class="stat-label">Speed</span><span class="stat-value" id="speedDisplay">1.0</span></div>
+    </div>
+    <button class="ctrl-btn" id="btnRestart">↻ CHƠI LẠI</button>
+    <button class="ctrl-btn" id="btnFullscreen">⛶ TOÀN MÀN HÌNH</button>
   </div>
 </div>
 
-  <canvas id="cloudGenCanvas" style="display:none"></canvas>
-  <div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999;font-family:'Press Start 2P',monospace;color:#ffd700;transition:opacity 0.5s">
-    <div style="font-size:clamp(14px,2vw,24px);margin-bottom:12px">Loading Assets...</div>
-    <div id="loadPct" style="font-size:clamp(28px,5vw,48px);font-weight:bold">0%</div>
-    <div style="margin-top:12px;width:clamp(120px,20vw,240px);height:8px;background:#333;border-radius:4px;overflow:hidden">
-      <div id="loadBar" style="width:0%;height:100%;background:#ffd700;border-radius:4px;transition:width 0.2s"></div>
-    </div>
+<video id="inputVideo" autoplay playsinline muted></video>
+<div id="loadingOverlay">
+  <div style="font-size:clamp(14px,2vw,24px);margin-bottom:12px">Loading Assets...</div>
+  <div id="loadPct" style="font-size:clamp(28px,5vw,48px);font-weight:bold">0%</div>
+  <div style="margin-top:12px;width:clamp(120px,20vw,240px);height:8px;background:#333;border-radius:4px;overflow:hidden">
+    <div id="loadBar" style="width:0%;height:100%;background:#ffd700;border-radius:4px;transition:width 0.2s"></div>
   </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>

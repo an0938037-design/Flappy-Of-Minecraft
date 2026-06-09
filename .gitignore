@@ -5,3 +5,7 @@ Thumbs.db
 .vercel
 InventivetalentDev*/
 __pycache__/
+*.lnk
+desktop.ini
+*.txt
+flappy-bird-fixed/

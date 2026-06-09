@@ -20,10 +20,10 @@ const BLOCK_SIZE = 40;
 const GROUND_LAYERS = 5;
 const GROUND_Y = LOGICAL_H - GROUND_LAYERS * BLOCK_SIZE;
 const BIRD_SIZE = 45;
-const OBSTACLE_MAX_PX = 200;
-const OBSTACLE_MAX_PCT = 0.5;
-const GAP_SIZE = 200;
-const BASE_SPAWN_DIST = 380;
+const OBSTACLE_MAX_PX = 150;
+const OBSTACLE_MAX_PCT = 0.375;
+const GAP_SIZE = 180;
+const BASE_SPAWN_DIST = 350;
 
 function aspectFit(cw,ch,iw,ih){
   const r=iw/ih;
@@ -870,6 +870,8 @@ class Game {
 
   updateUI() {
     document.getElementById('scoreDisplay').textContent=this.score;
+    const sd2=document.getElementById('scoreDisplay2');
+    if(sd2) sd2.textContent='Score: '+this.score;
     document.getElementById('highScoreDisplay').textContent=this.highScore;
     document.getElementById('chapterDisplay').textContent=this.currentChapter;
     const elapsed=(performance.now()-this.chapterStartTime)/1000;
@@ -901,6 +903,19 @@ class Game {
     ctx.font='20px "Press Start 2P",monospace';
     ctx.fillText('Score: '+this.score,w/2,h/2+30);
     ctx.shadowBlur=0;
+
+    const go2=document.getElementById('gameOver2');
+    if(go2){
+      go2.style.display='block';
+      go2.onclick=()=>{
+        go2.style.display='none';
+        document.getElementById('playBtn').classList.remove('hidden');
+        document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
+        document.getElementById('char-select').style.display='flex';
+        game.handTracker.stop();
+        game.state='menu';
+      };
+    }
 
     document.getElementById('playBtn').classList.remove('hidden');
     document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
@@ -964,11 +979,12 @@ async function init() {
   const setCanvasSize=()=>{
     canvas.width=LOGICAL_W;
     canvas.height=LOGICAL_H;
-    const availW=window.innerWidth*0.7;
-    const availH=window.innerHeight;
-    const fit=aspectFit(availW,availH,LOGICAL_W,LOGICAL_H);
-    canvas.style.width=fit.w+'px';
-    canvas.style.height=fit.h+'px';
+    const ga=document.getElementById('gameArea');
+    const aw=ga?ga.clientWidth:window.innerWidth*0.7;
+    const ah=ga?ga.clientHeight:window.innerHeight;
+    const fit=aspectFit(aw,ah,LOGICAL_W,LOGICAL_H);
+    canvas.style.width=Math.floor(fit.w)+'px';
+    canvas.style.height=Math.floor(fit.h)+'px';
   };
   setCanvasSize();
   setTimeout(setCanvasSize,100);
@@ -979,6 +995,23 @@ async function init() {
   document.getElementById('highScoreDisplay').textContent=game.highScore;
 
   window.addEventListener('resize',()=>{setCanvasSize()});
+  window.addEventListener('orientationchange',()=>setTimeout(setCanvasSize,100));
+
+  document.getElementById('btnRestart').addEventListener('click',()=>{
+    if(game.state==='gameover'||game.state==='playing'){
+      const go2=document.getElementById('gameOver2');
+      if(go2) go2.style.display='none';
+      document.getElementById('playBtn').classList.remove('hidden');
+      document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
+      document.getElementById('char-select').style.display='flex';
+      game.handTracker.stop();
+      game.state='menu';
+    }
+  });
+  document.getElementById('btnFullscreen').addEventListener('click',()=>{
+    if(document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  });
 
   document.addEventListener('keydown',(e)=>{
     if((e.code==='Space'||e.code==='ArrowUp')&&game.state==='playing'){
