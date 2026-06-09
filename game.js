@@ -21,7 +21,7 @@ const MAX_HEIGHT_BOTTOM = 236;
 const MAX_HEIGHT_MID = 159;
 const MAX_HEIGHT_TOP = 184;
 const GAP_SIZE = 504;
-const BASE_SPAWN_DIST = 800;
+const BASE_SPAWN_DIST = 400;
 const MIN_BOTTOM_PER_ZONE = 4;
 const MIN_MID_PER_ZONE = 3;
 const MIN_TOP_PER_ZONE = 3;
@@ -382,8 +382,8 @@ class ObstacleManager {
 
     const zone=[];
     const used={};
-    const maxTotal=randInt(10,18);
-    const typeMax={b:8,t:6,m:6};
+    const maxTotal=randInt(20,32);
+    const typeMax={b:12,t:10,m:10};
 
     for(const o of shuffled){
       if(zone.length>=maxTotal) break;
@@ -465,9 +465,9 @@ class ObstacleManager {
         else if(p==='mb'||p==='bm') minGap=birdW*2.5;
       }
       const desiredX=lastObs.x+lastObs.dim.w+minGap;
-      if(x<desiredX) x=desiredX+rand(20,60);
+      if(x<desiredX) x=desiredX+30;
     }
-    if(x<canvasW) x=canvasW+rand(20,80);
+    if(x<canvasW) x=canvasW+50;
 
     let y;
     switch(data.pos){
@@ -481,7 +481,7 @@ class ObstacleManager {
     this.obstaclesSpawnedThisZone++;
 
     const sp=Math.floor(BASE_SPAWN_DIST*(150/Math.max(game.currentSpeed,50)));
-    this.nextSpawnX=x+dim.w+Math.max(sp,80);
+    this.nextSpawnX=x+dim.w+Math.max(sp,120);
   }
 
   update(dt,speed) {
