@@ -31,6 +31,23 @@ function parseObstacleName(name) {
 function rand(a,b){return a+Math.random()*(b-a)}
 function randInt(a,b){return Math.floor(rand(a,b+1))}
 
+// ========== CHROMA KEY ==========
+function createChromaKeyedImage(srcImg, keyColor, tolerance) {
+  keyColor=keyColor||[0,255,0]; tolerance=tolerance||80;
+  const c = document.createElement('canvas');
+  c.width=srcImg.naturalWidth; c.height=srcImg.naturalHeight;
+  const cx=c.getContext('2d');
+  cx.drawImage(srcImg,0,0);
+  const d=cx.getImageData(0,0,c.width,c.height);
+  const data=d.data;
+  for(let i=0;i<data.length;i+=4){
+    const dist=Math.hypot(data[i]-keyColor[0],data[i+1]-keyColor[1],data[i+2]-keyColor[2]);
+    if(dist<tolerance) data[i+3]=0;
+  }
+  cx.putImageData(d,0,0);
+  return c;
+}
+
 // ========== ASSET MANAGER ==========
 class AssetManager {
   constructor() {
@@ -39,35 +56,50 @@ class AssetManager {
     this.ready = false;
   }
 
-  load(src,label) {
+  load(src,label,doChroma) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => { console.log('✓ Loaded:',src); resolve(img); };
+      img.onload = () => {
+        console.log('✓ Loaded:',src);
+        if(doChroma){
+          try{ resolve(createChromaKeyedImage(img)); return }catch(e){}
+        }
+        resolve(img);
+      };
       img.onerror = () => { console.warn('✗ Failed:',src,label?'– placeholder for '+label:''); resolve(null); };
       img.src = src;
     });
   }
 
-  async init() {
+  async init(progressCb) {
+    const total=Object.keys(GROUND_FILES).length+OBSTACLE_FILES.length+Object.keys(CHAR_MAP).length*2+1;
+    let loaded=0;
+    const done=(label)=>{loaded++;if(progressCb)progressCb(Math.floor(loaded/total*100),label)};
+
     const groundKeys = Object.keys(GROUND_FILES);
     const groundPromises = groundKeys.map(async (k) => {
-      this.images[k] = await this.load(ASSETS + 'ground/' + GROUND_FILES[k]);
+      this.images[k] = await this.load(ASSETS + 'ground/' + GROUND_FILES[k],k);
+      done(k);
     });
     await Promise.all(groundPromises);
 
     for (const f of OBSTACLE_FILES) {
       const data = parseObstacleName(f);
       if (!data) continue;
-      const img = await this.load(ASSETS + 'obc/' + f);
+      const img = await this.load(ASSETS + 'obc/' + f,f,true);
       this.obstacles.push({ ...data, img, file:f });
+      done(f);
     }
 
     for (const [ch,map] of Object.entries(CHAR_MAP)) {
-      this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt);
-      this.images['logo_'+ch] = await this.load(ASSETS + 'logo/' + map.logo);
+      this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt,ch+' crt',true);
+      done(ch+' crt');
+      this.images['logo_'+ch] = await this.load(ASSETS + 'logo/' + map.logo,ch+' logo');
+      done(ch+' logo');
     }
 
-    this.images.clouds = await this.load(ASSETS + 'clouds/cloud1.png');
+    this.images.clouds = await this.load(ASSETS + 'clouds/cloud1.png','cloud');
+    done('cloud');
 
     this.ready = true;
   }
@@ -198,7 +230,9 @@ class Bird {
     this.vy=0;
     this.w=0; this.h=0;
     this.gravity=0;
-    this.jumpForce=0;
+    this.jumpFull=0;
+    this.jumpHand=0;
+    this.maxFallSpeed=0;
     this.cooldown=0;
     this.cooldownMax=0.4;
     this.rotation=0;
@@ -206,32 +240,38 @@ class Bird {
 
   init(canvasW,canvasH) {
     if(!canvasW||!canvasH||canvasH<50) {canvasW=800;canvasH=600}
-    this.blockRef=Math.max(4,Math.floor(canvasH*0.04));
-    this.w=this.blockRef;
-    this.h=this.blockRef;
+    const s=Math.max(8,Math.floor(canvasH*0.075));
+    this.w=s; this.h=s;
     this.x=canvasW*0.2;
     this.y=canvasH*0.35;
     this.vy=0;
-    this.gravity=canvasH*0.75;
-    this.jumpForce=-canvasH*1.0;
+    const h6=canvasH/600;
+    this.gravity=1000*h6;
+    this.jumpFull=260*h6;
+    this.jumpHand=180*h6;
+    this.maxFallSpeed=550*h6;
     this.rotation=0;
     this.cooldown=0;
   }
 
-  flap() {
+  flap(fullForce) {
     if(this.cooldown>0) return;
-    this.vy=this.jumpForce;
+    this.vy=-(fullForce!==false?this.jumpFull:this.jumpHand);
     this.rotation=-0.4;
     this.cooldown=this.cooldownMax;
   }
 
-  update(dt) {
+  update(dt,groundY) {
     this.vy+=this.gravity*dt;
+    if(this.vy>this.maxFallSpeed) this.vy=this.maxFallSpeed;
     this.y+=this.vy*dt;
     if(this.cooldown>0) this.cooldown-=dt;
+    if(this.y<0){this.y=0;this.vy=0}
+    if(groundY!==undefined&&this.y+this.h>=groundY) return true;
     this.rotation+=(0-this.rotation)*5*dt;
     if(this.rotation>1.2) this.rotation=1.2;
     if(this.rotation<-0.4) this.rotation=-0.4;
+    return false;
   }
 
   render(ctx,charId) {
@@ -254,8 +294,7 @@ class Bird {
   }
 
   getBounds() {
-    const s=this.blockRef||this.w;
-    return { x:this.x, y:this.y, w:s, h:s };
+    return { x:this.x+3, y:this.y+3, w:this.w-6, h:this.h-6 };
   }
 }
 
@@ -269,6 +308,16 @@ class ObstacleManager {
     this.zoneSpawnIdx=0;
     this.nextSpawnX=0;
     this.generatedZones=0;
+    this.zoneSpawnCounts={};
+  }
+
+  getScaledDims(img,canvasW) {
+    const maxW=Math.min(50,Math.floor(canvasW*0.08));
+    const nw=img.naturalWidth||img.width||50;
+    const nh=img.naturalHeight||img.height||50;
+    const targetW=Math.min(maxW,nw);
+    const aspect=nh/nw;
+    return {w:targetW,h:targetW*aspect};
   }
 
   generateZone(chapterId) {
@@ -276,28 +325,29 @@ class ObstacleManager {
     if(!pool.length) return [];
 
     const counts={b:0,t:0,m:0};
-    const used={};
-    for(const o of pool) used[o.file]=0;
 
-    const shuffled=[...pool];
+    // Weighted selection: nature type weight 5, others weight 1
+    const weighted=[];
+    for(const o of pool){
+      const w=o.type==='n'?5:1;
+      for(let i=0;i<w;i++) weighted.push(o);
+    }
+
+    const shuffled=[...weighted];
     for(let i=shuffled.length-1;i>0;i--){const j=randInt(0,i);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]}
 
     const zone=[];
-    const maxTotal=randInt(10,20);
+    const used={};
+    const maxTotal=randInt(10,18);
 
     for(const o of shuffled){
       if(zone.length>=maxTotal) break;
-      if(counts[o.pos]>= {b:8,t:9,m:4}[o.pos]) continue;
-      if(o.maxPerZone>0&&used[o.file]>=o.maxPerZone) continue;
-      zone.push(o);
-      counts[o.pos]++; used[o.file]++;
-    }
-
-    if(zone.length<5){
-      for(const o of pool){
-        if(zone.length>=10) break;
-        if(counts[o.pos]>= {b:8,t:9,m:4}[o.pos]) continue;
-        zone.push(o); counts[o.pos]++;
+      if(counts[o.pos]>= {b:6,t:6,m:3}[o.pos]) continue;
+      const key=o.file;
+      if(o.maxPerZone>0&&(used[key]||0)>=o.maxPerZone) continue;
+      if(!zone.some(z=>z.file===key)){
+        zone.push(o);
+        counts[o.pos]++; used[key]=(used[key]||0)+1;
       }
     }
 
@@ -311,6 +361,7 @@ class ObstacleManager {
     this.nextSpawnX=0;
     this.active=[];
     this.generatedZones=0;
+    this.zoneSpawnCounts={};
 
     for(let i=0;i<4;i++){
       const zone=this.generateZone(chapterId);
@@ -336,12 +387,12 @@ class ObstacleManager {
     if(!data) return;
 
     const img=data.img;
-    if(!img||!img.naturalWidth) return;
+    if(!img) return;
 
+    const dim=this.getScaledDims(img,canvasW);
     const bs=Math.max(4,Math.floor(canvasH*0.04));
-    const groundH=bs*5;
-    const groundY=canvasH-groundH;
-    const birdW=bs;
+    const groundY=canvasH-bs*5;
+    const birdW=Math.max(8,Math.floor(canvasH*0.075));
 
     let x=this.nextSpawnX;
     const lastObs=this.active[this.active.length-1];
@@ -353,50 +404,48 @@ class ObstacleManager {
         if(p==='mt'||p==='tm') minGap=birdW*1.5;
         else if(p==='mb'||p==='bm') minGap=birdW*2.5;
       }
-      const desiredX=lastObs.x+lastObs.img.naturalWidth+minGap;
+      const desiredX=lastObs.x+lastObs.dim.w+minGap;
       if(x<desiredX) x=desiredX+rand(20,60);
     }
     if(x<canvasW) x=canvasW+rand(20,80);
 
     let y;
     switch(data.pos){
-      case 'b': y=Math.min(groundY-img.naturalHeight,canvasH-img.naturalHeight); if(y<0) y=0; break;
-      case 'm': y=Math.max(10,Math.min(rand(canvasH*0.3,canvasH*0.7),canvasH-img.naturalHeight-10)); break;
+      case 'b': y=groundY-dim.h; break;
+      case 'm': y=Math.max(10,Math.min(rand(canvasH*0.3,canvasH*0.7),canvasH-dim.h-10)); break;
       case 't': y=0; break;
     }
 
-    const obs={ data, img, x, y };
+    const obs={ data, img, x, y, dim };
     this.active.push(obs);
 
-    const sp=rand(120,200);
-    this.nextSpawnX=x+img.naturalWidth+sp;
+    const sp=rand(150,250);
+    this.nextSpawnX=x+dim.w+sp;
   }
 
   update(dt,speed) {
     for(let i=this.active.length-1;i>=0;i--){
       this.active[i].x-=speed*dt;
-      if(this.active[i].x+this.active[i].img.naturalWidth< -100) this.active.splice(i,1);
+      if(this.active[i].x+this.active[i].dim.w< -100) this.active.splice(i,1);
     }
   }
 
   render(ctx) {
     for(const o of this.active){
       if(o.data.pos==='b') continue;
-      if(o.img) ctx.drawImage(o.img,o.x,o.y);
+      if(o.img) ctx.drawImage(o.img,o.x,o.y,o.dim.w,o.dim.h);
       else {
-        ctx.fillStyle='#888'; ctx.fillRect(o.x,o.y,60,60);
+        ctx.fillStyle='#888'; ctx.fillRect(o.x,o.y,o.dim.w,o.dim.h);
         ctx.fillStyle='#fff'; ctx.font='10px monospace';
-        ctx.fillText('['+o.data.pos+o.data.type+']',o.x+5,o.y+30);
+        ctx.fillText('['+o.data.pos+o.data.type+']',o.x+5,o.y+o.dim.h/2);
       }
     }
   }
 
   checkCollision(birdBounds) {
     for(const o of this.active){
-      const img=o.img;
-      if(!img) continue;
-      const pad=5;
-      const ob={ x:o.x+pad, y:o.y+pad, w:img.naturalWidth-pad*2, h:img.naturalHeight-pad*2 };
+      const pad=3;
+      const ob={ x:o.x+pad, y:o.y+pad, w:o.dim.w-pad*2, h:o.dim.h-pad*2 };
       if(birdBounds.x<ob.x+ob.w&&birdBounds.x+birdBounds.w>ob.x&&
          birdBounds.y<ob.y+ob.h&&birdBounds.y+birdBounds.h>ob.y) return true;
     }
@@ -406,7 +455,7 @@ class ObstacleManager {
   getPassed(birdX) {
     let count=0;
     for(const o of this.active){
-      if(!o.passed&&o.x+o.img.naturalWidth<birdX){ o.passed=true; count++; }
+      if(!o.passed&&o.x+o.dim.w<birdX){ o.passed=true; count++; }
     }
     return count;
   }
@@ -414,14 +463,9 @@ class ObstacleManager {
   renderFront(ctx) {
     for(const o of this.active){
       if(o.data.pos==='b'){
-        if(o.img) ctx.drawImage(o.img,o.x,o.y);
+        if(o.img) ctx.drawImage(o.img,o.x,o.y,o.dim.w,o.dim.h);
       }
     }
-  }
-
-  isLastObstacleOffScreen() {
-    if(!this.active.length) return true;
-    return this.active[this.active.length-1].x+this.active[this.active.length-1].img.naturalWidth<0;
   }
 
   zonesCompleted(){return this.generatedZones}
@@ -455,11 +499,11 @@ class HandTracker {
   constructor() {
     this.hands=null;
     this.running=false;
-    this.lastGesture='';
-    this.gestureCooldown=0;
     this.landmarks=null;
     this.smoothX=0; this.smoothY=0;
     this.hasHand=false;
+    this.lastWristY=null;
+    this.lastWristTime=0;
   }
 
   async init(camera,callback) {
@@ -476,19 +520,31 @@ class HandTracker {
         if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
           self.landmarks=results.multiHandLandmarks[0];
           self.hasHand=true;
-          const cx=self.landmarks[9].x;
-          const cy=self.landmarks[9].y;
+          const wrist=results.multiHandLandmarks[0][0];
+          const now=performance.now();
+          const logicalH=game.canvas?game.canvas.height:600;
+          const logicalY=wrist.y*logicalH;
+
+          if(self.lastWristY!==null&&self.lastWristTime>0){
+            const dt=(now-self.lastWristTime)/1000;
+            if(dt>0.01){
+              const velocity=(logicalY-self.lastWristY)/dt;
+              // Upward motion (negative velocity) triggers jump
+              if(velocity<-150&&callback) callback();
+            }
+          }
+          self.lastWristY=logicalY;
+          self.lastWristTime=now;
+
+          const cx=wrist.x;
+          const cy=wrist.y;
           const smoothed=camera.smoothPosition(cx,cy);
           self.smoothX=smoothed.x;
           self.smoothY=smoothed.y;
-          const isOpen=self.detectOpen();
-          const gesture=isOpen?'open':'fist';
-          if(gesture!==self.lastGesture){
-            self.lastGesture=gesture;
-            if(callback) callback(gesture);
-          }
         } else {
           self.hasHand=false;
+          self.lastWristY=null;
+          self.lastWristTime=0;
         }
       });
       camera.onFrame=async (video,shouldProcess)=>{
@@ -502,18 +558,6 @@ class HandTracker {
       console.warn('Hand tracking init failed:',e);
       this.running=false;
     }
-  }
-
-  detectOpen() {
-    if(!this.landmarks) return false;
-    let extended=0;
-    const tips=[4,8,12,16,20];
-    const palm=this.landmarks[0];
-    for(const tip of tips){
-      const d=Math.hypot(this.landmarks[tip].x-palm.x,this.landmarks[tip].y-palm.y);
-      if(d>0.15) extended++;
-    }
-    return extended>=3;
   }
 
   stop(){
@@ -561,9 +605,9 @@ class Game {
   }
 
   setupControls() {
-    const tapFlap=()=>{if(this.state==='playing')this.bird.flap()};
-    this.canvas.addEventListener('click',tapFlap);
-    this.canvas.addEventListener('touchstart',(e)=>{e.preventDefault();tapFlap()},{passive:false});
+    const fullFlap=()=>{if(this.state==='playing')this.bird.flap(true)};
+    this.canvas.addEventListener('click',fullFlap);
+    this.canvas.addEventListener('touchstart',(e)=>{e.preventDefault();fullFlap()},{passive:false});
   }
 
   setupUI() {
@@ -597,8 +641,8 @@ class Game {
     document.getElementById('webcam-area').style.display='flex';
 
     try{
-      await this.handTracker.init(this.camera,(gesture)=>{
-        if(this.state==='playing'&&gesture==='open') this.bird.flap();
+      await this.handTracker.init(this.camera,()=>{
+        if(this.state==='playing') this.bird.flap(false);
       });
     }catch(e){
       console.warn('Camera fallback:',e);
@@ -689,20 +733,19 @@ class Game {
       const curZone=Math.floor(this.oreTimer/10);
       if(curZone!==this.terrain.zoneOreReset){this.terrain.resetOreCount();this.terrain.zoneOreReset=curZone}
 
-      this.bird.update(dt);
+      const bs=Math.max(4,Math.floor(this.canvas.height*0.04));
+      const groundY=this.canvas.height-bs*5;
+      if(this.bird.update(dt,groundY)){ this.gameOver(); return; }
 
       this.obstacles.update(dt,this.currentSpeed);
       const lastObs=this.obstacles.active[this.obstacles.active.length-1];
-      if(!lastObs||lastObs.x+lastObs.img.naturalWidth<this.canvas.width){
+      if(!lastObs||lastObs.x+lastObs.dim.w<this.canvas.width){
         this.obstacles.spawnNext(this.canvas.width,this.canvas.height);
       }
 
       this.score+=this.obstacles.getPassed(this.bird.x);
 
       const bb=this.bird.getBounds();
-      const bs=Math.max(4,Math.floor(this.canvas.height*0.04));
-      const groundY=this.canvas.height-bs*5;
-      if(bb.y+bb.h>=groundY||bb.y<=0){ this.gameOver(); return; }
       if(this.obstacles.checkCollision(bb)){ this.gameOver(); return; }
 
       if(!ch||elapsed>=ch.duration||this.obstacles.zonesCompleted()>=4){
@@ -716,7 +759,7 @@ class Game {
         if(o.data.pos==='b'&&o.data.type==='v'){
           const id=o.data.file+'_'+Math.floor(o.x/100);
           if(!this._villageObs.has(id)){
-            this.terrain.setPath(o.x,o.x+o.img.naturalWidth);
+            this.terrain.setPath(o.x,o.x+o.dim.w);
             this._villageObs.add(id);
           }
           hasActiveVillage=true;
@@ -901,7 +944,8 @@ const assets=new AssetManager();
 let game;
 
 async function init() {
-  await assets.init();
+  const progressCb=window._loadingPct||function(){};
+  await assets.init(progressCb);
 
   const canvas=document.getElementById('gameCanvas');
   const setCanvasSize=()=>{
@@ -925,7 +969,7 @@ async function init() {
   document.addEventListener('keydown',(e)=>{
     if((e.code==='Space'||e.code==='ArrowUp')&&game.state==='playing'){
       e.preventDefault();
-      game.bird.flap();
+      game.bird.flap(true);
     }
   });
 }
