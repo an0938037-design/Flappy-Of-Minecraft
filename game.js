@@ -39,11 +39,11 @@ class AssetManager {
     this.ready = false;
   }
 
-  load(src) {
+  load(src,label) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => { console.warn('Failed:', src); resolve(null); };
+      img.onload = () => { console.log('✓ Loaded:',src); resolve(img); };
+      img.onerror = () => { console.warn('✗ Failed:',src,label?'– placeholder for '+label:''); resolve(null); };
       img.src = src;
     });
   }
@@ -120,18 +120,15 @@ class Terrain {
 
   generateColumn(idx) {
     const layers=[];
-    layers[0]='gs0';
+    layers[0]='se0'; layers[1]='se0';
     const r2=Math.random();
-    let l1=r2<0.15?'cl0':r2<0.3?'se0':'dt0';
-    if(l1==='cl0'&&this.oreCount.cl0>=this.oreMax.cl0) l1='dt0';
-    else if(l1==='cl0') this.oreCount.cl0++;
-    layers[1]=l1;
+    layers[2]=r2<0.2?'se0':'dt0';
     const r3=Math.random();
-    let l2=r3<0.12?'in0':r3<0.25?'se0':'dt0';
-    if(l2==='in0'&&this.oreCount.in0>=this.oreMax.in0) l2='dt0';
-    else if(l2==='in0') this.oreCount.in0++;
-    layers[2]=l2;
-    layers[3]='se0'; layers[4]='se0';
+    let l3='dt0';
+    if(r3<0.1&&this.oreCount.cl0<this.oreMax.cl0){l3='cl0';this.oreCount.cl0++}
+    else if(r3<0.18&&this.oreCount.in0<this.oreMax.in0){l3='in0';this.oreCount.in0++}
+    layers[3]=l3;
+    layers[4]='gs0';
     return layers;
   }
 
@@ -148,7 +145,7 @@ class Terrain {
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
-      if(this.cols.has(i)){const l=this.cols.get(i);if(l[0]==='gs0')l[0]='gs1'}
+      if(this.cols.has(i)){const l=this.cols.get(i);if(l[4]==='gs0')l[4]='gs1'}
     }
   }
 
@@ -158,15 +155,13 @@ class Terrain {
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
-      if(this.cols.has(i)){const l=this.cols.get(i);if(l[0]==='gs1')l[0]='gs0'}
+      if(this.cols.has(i)){const l=this.cols.get(i);if(l[4]==='gs1')l[4]='gs0'}
     }
   }
 
   render(ctx,canvasW,canvasH) {
     if(!canvasW||!canvasH||canvasH<100) return;
     const bs=this.blockSize=Math.max(4,Math.floor(canvasH*0.04));
-    const groundH=bs*5;
-    const groundY=canvasH-groundH;
     const colsVisible=Math.ceil(canvasW/bs)+4;
     const startCol=Math.floor(this.offset/bs);
 
@@ -174,9 +169,9 @@ class Terrain {
       const colIdx=startCol+i;
       const col=this.getCol(colIdx);
       const x=i*bs-(this.offset%bs);
-      for(let ly=0;ly<5;ly++){
-        const y=groundY+ly*bs;
-        const key=col[ly];
+      for(let layer=0;layer<5;layer++){
+        const y=canvasH-(layer+1)*bs;
+        const key=col[layer];
         const tex=assets?assets.getGround(key):null;
         if(tex){
           try{ctx.drawImage(tex,x,y,bs,bs)}catch(e){
@@ -536,7 +531,7 @@ class Game {
     this.currentZone=0;
     this.score=0;
     this.highScore=parseInt(localStorage.getItem('fom_highscore')||'0');
-    this.chapterTimer=0;
+    this.chapterStartTime=0;
     this.currentSpeed=0;
 
     this.canvas=document.getElementById('gameCanvas');
@@ -559,6 +554,7 @@ class Game {
     this.countdownTimer=null;
     this.chapterTimeout=null;
     this.webcamRafId=null;
+    this.chapterNotif=null;
 
     this.setupUI();
     this.setupControls();
@@ -651,7 +647,7 @@ class Game {
     this.oreTimer=0;
 
     const ch=CHAPTERS[0];
-    this.chapterTimer=ch.duration;
+    this.chapterStartTime=performance.now();
     this.currentSpeed=ch.baseMinSpeed;
 
     this.canvas.width=this.canvas.offsetWidth;
@@ -675,7 +671,7 @@ class Game {
 
   _loop(timestamp) {
     this.rafId=requestAnimationFrame((t)=>this._loop(t));
-    const dt=Math.min((timestamp-this.lastTime)/1000,0.05);
+    const dt=Math.min((timestamp-this.lastTime)/1000,0.033);
     this.lastTime=timestamp;
     this.update(dt);
     this.render();
@@ -683,10 +679,9 @@ class Game {
 
   update(dt) {
     if(this.state==='playing'){
-      this.chapterTimer=Math.max(0,this.chapterTimer-dt);
-
+      const elapsed=(performance.now()-this.chapterStartTime)/1000;
       const ch=CHAPTERS[this.currentChapter-1];
-      this.chapterProgress=ch?Math.max(0,1-this.chapterTimer/ch.duration):0;
+      this.chapterProgress=ch?Math.min(1,elapsed/ch.duration):0;
       this.currentSpeed=ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*this.chapterProgress;
 
       this.terrain.update(dt,this.currentSpeed*0.5);
@@ -710,7 +705,7 @@ class Game {
       if(bb.y+bb.h>=groundY||bb.y<=0){ this.gameOver(); return; }
       if(this.obstacles.checkCollision(bb)){ this.gameOver(); return; }
 
-      if(this.chapterTimer<=0||this.obstacles.zonesCompleted()>=4){
+      if(!ch||elapsed>=ch.duration||this.obstacles.zonesCompleted()>=4){
         this.chapterComplete();
         return;
       }
@@ -733,6 +728,12 @@ class Game {
       }
 
       this.updateUI();
+    }
+
+    if(this.chapterNotif){
+      this.chapterNotif.timer-=dt;
+      this.chapterNotif.alpha=Math.max(0,this.chapterNotif.timer/2);
+      if(this.chapterNotif.timer<=0)this.chapterNotif=null;
     }
 
     for(const c of this.clouds) c.update(dt,this.currentSpeed/100);
@@ -759,6 +760,17 @@ class Game {
       this.obstacles.render(ctx);
       this.bird.render(ctx,this.selectedChar);
       this.obstacles.renderFront(ctx);
+    }
+
+    if(this.chapterNotif){
+      ctx.save();
+      ctx.globalAlpha=this.chapterNotif.alpha;
+      ctx.fillStyle='#ffd700';
+      ctx.font='bold 28px "Press Start 2P",monospace';
+      ctx.textAlign='center';
+      ctx.shadowColor='#000';ctx.shadowBlur=8;
+      ctx.fillText(this.chapterNotif.text,w/2,h*0.18);
+      ctx.restore();
     }
   }
 
@@ -804,8 +816,9 @@ class Game {
     document.getElementById('scoreDisplay').textContent=this.score;
     document.getElementById('highScoreDisplay').textContent=this.highScore;
     document.getElementById('chapterDisplay').textContent=this.currentChapter;
-    document.getElementById('timerDisplay').textContent=Math.ceil(this.chapterTimer);
+    const elapsed=(performance.now()-this.chapterStartTime)/1000;
     const ch=CHAPTERS[this.currentChapter-1];
+    if(ch) document.getElementById('timerDisplay').textContent=Math.ceil(Math.max(0,ch.duration-elapsed));
     if(ch) document.getElementById('speedDisplay').textContent=((ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*this.chapterProgress)/100).toFixed(1);
   }
 
@@ -865,7 +878,7 @@ class Game {
 
     const ch=CHAPTERS[this.currentChapter-1];
     if(ch){
-      this.chapterTimer=ch.duration;
+      this.chapterStartTime=performance.now();
       this.currentSpeed=ch.baseMinSpeed;
       this.terrain.resetOreCount();
       this.terrain.cols.clear();
@@ -878,6 +891,7 @@ class Game {
       for(let i=0;i<6;i++) this.clouds.push(new Cloud(this.canvas.width,this.canvas.height));
     }
 
+    this.chapterNotif={text:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
     this.state='playing';
   }
 }
