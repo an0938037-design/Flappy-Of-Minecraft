@@ -782,6 +782,8 @@ class Game {
 
   beginPlay() {
     if(this.rafId){cancelAnimationFrame(this.rafId);this.rafId=null}
+    const goEl=document.getElementById('gameOver');
+    if(goEl) goEl.style.display='none';
     this.state='playing';
     this.score=0;
     this.currentChapter=1;
