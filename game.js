@@ -61,7 +61,7 @@ function computeTightBoundingBox(src){
   const d=cx.getImageData(0,0,w,h).data;
   let minX=w,minY=h,maxX=0,maxY=0;
   for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-    if(d[(y*w+x)*4+3]>0){
+    if(d[(y*w+x)*4+3]>128){
       if(x<minX)minX=x; if(x>maxX)maxX=x;
       if(y<minY)minY=y; if(y>maxY)maxY=y;
     }
@@ -281,7 +281,7 @@ class Bird {
     this.jumpHand=0;
     this.maxFallSpeed=0;
     this.cooldown=0;
-    this.cooldownMax=0.4;
+    this.cooldownMax=0.15;
   }
 
   init(canvasW,canvasH) {
@@ -826,7 +826,8 @@ class Game {
     if(this.state==='playing'){
       const elapsed=(performance.now()-this.chapterStartTime)/1000;
       const ch=CHAPTERS[this.currentChapter-1];
-      this.chapterProgress=ch?Math.min(1,elapsed/ch.duration):0;
+      const dur=ch?ch.duration:CHAPTER_DURATION;
+      this.chapterProgress=Math.min(1,elapsed/dur);
       const minS=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
       const maxS=MAX_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
       this.currentSpeed=minS+(maxS-minS)*this.chapterProgress;
@@ -850,7 +851,7 @@ class Game {
       const bb=this.bird.getBounds();
       if(this.obstacles.checkCollision(bb)){ this.gameOver(); return; }
 
-      if(!ch||elapsed>=ch.duration||this.obstacles.zonesCompleted()>=4){
+      if(elapsed>=dur||this.obstacles.zonesCompleted()>=4){
         this.chapterComplete();
         return;
       }
@@ -973,9 +974,8 @@ class Game {
     document.getElementById('highScoreDisplay').textContent=this.highScore;
     document.getElementById('chapterDisplay').textContent=this.currentChapter;
     const elapsed=(performance.now()-this.chapterStartTime)/1000;
-    const ch=CHAPTERS[this.currentChapter-1];
-    if(ch) document.getElementById('timerDisplay').textContent=Math.ceil(Math.max(0,ch.duration-elapsed));
-    if(ch) document.getElementById('speedDisplay').textContent=(this.currentSpeed/100).toFixed(1);
+    document.getElementById('timerDisplay').textContent=Math.ceil(Math.max(0,CHAPTER_DURATION-elapsed));
+    document.getElementById('speedDisplay').textContent=(this.currentSpeed/100).toFixed(1);
   }
 
   gameOver() {
@@ -1013,42 +1013,27 @@ class Game {
 
   chapterComplete() {
     if(this.chapterTimeout){clearTimeout(this.chapterTimeout);this.chapterTimeout=null}
-    if(this.currentChapter>=CHAPTERS.length){
-      this.state='gameover';
-      const ctx=this.ctx;
-      ctx.fillStyle='rgba(0,0,0,0.5)';
-      ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-      ctx.fillStyle='#ffd700';
-      ctx.font='30px "Press Start 2P",monospace';
-      ctx.textAlign='center';
-      ctx.fillText('ALL CHAPTERS',this.canvas.width/2,this.canvas.height/2-20);
-      ctx.fillText('COMPLETE!',this.canvas.width/2,this.canvas.height/2+30);
-      return;
-    }
 
     this.state='chaptercomplete';
-
     this.currentChapter++;
     this.currentZone=0;
     this.chapterProgress=0;
     this.oreTimer=0;
     this._villageObs=new Set();
 
-    const ch=CHAPTERS[this.currentChapter-1];
-    if(ch){
-      this.chapterStartTime=performance.now();
-      this.currentSpeed=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
-      this.terrain.resetOreCount();
-      this.terrain.cols.clear();
-      this.terrain.offset=0;
-      this.obstacles.initZones(this.currentChapter);
-      this.obstacles.nextSpawnX=LOGICAL_W+50;
-      this.bird.vy=0;
-      this.clouds=[];
-      for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
-    }
+    const chIdx=Math.min(this.currentChapter,CHAPTERS.length);
+    this.chapterStartTime=performance.now();
+    this.currentSpeed=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
+    this.terrain.resetOreCount();
+    this.terrain.cols.clear();
+    this.terrain.offset=0;
+    this.obstacles.initZones(chIdx);
+    this.obstacles.nextSpawnX=LOGICAL_W+50;
+    this.bird.vy=0;
+    this.clouds=[];
+    for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
 
-    this.chapterNotif={text:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
+    this.chapterNotif={text:this.currentChapter>CHAPTERS.length?'♾️ ENDLESS CH.'+this.currentChapter:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
     this.state='playing';
   }
 }
