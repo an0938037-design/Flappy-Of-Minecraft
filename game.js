@@ -684,6 +684,7 @@ class Game {
     this.hp=3;
     this.speedMult=1;
     this.hpMaxMult=1;
+    this.hitCooldown=0;
 
     this.setupUI();
     this.setupControls();
@@ -855,13 +856,16 @@ class Game {
       const curZone=Math.floor(this.oreTimer/10);
       if(curZone!==this.terrain.zoneOreReset){this.groundSeed=Math.floor(Math.random()*10000);this.terrain.setSeed(this.groundSeed);this.terrain.zoneOreReset=curZone}
 
+      if(this.hitCooldown>0) this.hitCooldown-=dt;
+
       const groundY=GROUND_Y;
-      if(this.bird.update(dt,groundY)){
-        if(this.hp>0){
-          this.bird.vy=-this.bird.jumpFull*0.5;
-        } else {
-          this.gameOver(); return;
-        }
+      if(this.bird.update(dt,groundY)&&this.hitCooldown<=0){
+        if(this.hp<=0){ this.gameOver(); return; }
+        this.hp--;
+        this.hitCooldown=0.5;
+        this.speedMult*=1.02;
+        this.hpMaxMult*=1.5;
+        this.bird.vy=-this.bird.jumpFull*1.5;
       }
 
       this.obstacles.update(dt,this.currentSpeed);
@@ -874,16 +878,14 @@ class Game {
 
       const bb=this.bird.getBounds();
       const hitObs=this.obstacles.checkCollision(bb);
-      if(hitObs){
-        if(this.hp>0){
-          this.hp--;
-          const idx=this.obstacles.active.indexOf(hitObs);
-          if(idx>=0) this.obstacles.active.splice(idx,1);
-          this.speedMult*=1.02;
-          this.hpMaxMult*=1.5;
-        } else {
-          this.gameOver(); return;
-        }
+      if(hitObs&&this.hitCooldown<=0){
+        if(this.hp<=0){ this.gameOver(); return; }
+        this.hp--;
+        this.hitCooldown=0.5;
+        const idx=this.obstacles.active.indexOf(hitObs);
+        if(idx>=0) this.obstacles.active.splice(idx,1);
+        this.speedMult*=1.02;
+        this.hpMaxMult*=1.5;
       }
 
       if(elapsed>=dur||this.obstacles.zonesCompleted()>=4){
