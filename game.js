@@ -795,6 +795,7 @@ class Game {
 
     this.canvas.width=LOGICAL_W;
     this.canvas.height=LOGICAL_H;
+    resizeCanvas();
     this.bird.init(LOGICAL_W,LOGICAL_H);
     this.groundSeed=Math.floor(Math.random()*10000);
     this.terrain.setSeed(this.groundSeed);
@@ -891,11 +892,13 @@ class Game {
     if(!w||!h) return;
 
     const scale=this.canvas.offsetWidth/w;
+    if(!scale) return;
     ctx.save();
     ctx.scale(scale,scale);
 
     const skyColor=this.currentChapter<=CHAPTERS.length?getSkyColor(this.currentChapter,this.chapterProgress):'rgb(17,17,71)';
     this.currentSkyColor=skyColor;
+    const ga=document.getElementById('gameArea');
     if(ga) ga.style.background=skyColor;
     const grad=ctx.createLinearGradient(0,0,0,h);
     grad.addColorStop(0,skyColor);
