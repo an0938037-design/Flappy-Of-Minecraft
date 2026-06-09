@@ -923,11 +923,9 @@ class Game {
     const w=this.canvas.width, h=this.canvas.height;
     if(!w||!h) return;
 
-    const ga=document.getElementById('gameArea');
-    const scaleX=ga?ga.clientWidth/w:1;
-    const scaleY=ga?ga.clientHeight/h:1;
+    const scale=this.canvas.offsetWidth/w;
     ctx.save();
-    ctx.scale(scaleX,scaleY);
+    ctx.scale(scale,scale);
 
     const skyColor=this.currentChapter<=CHAPTERS.length?getSkyColor(this.currentChapter,this.chapterProgress):'rgb(17,17,71)';
     this.currentSkyColor=skyColor;
@@ -1089,19 +1087,24 @@ class Game {
 const assets=new AssetManager();
 let game;
 
+function resizeCanvas(){
+  const canvas=document.getElementById('gameCanvas');
+  const ga=document.getElementById('gameArea');
+  const cw=ga.clientWidth, ch=ga.clientHeight;
+  const scale=Math.min(cw/LOGICAL_W, ch/LOGICAL_H);
+  canvas.width=LOGICAL_W;
+  canvas.height=LOGICAL_H;
+  canvas.style.width=Math.floor(LOGICAL_W*scale)+'px';
+  canvas.style.height=Math.floor(LOGICAL_H*scale)+'px';
+}
+
 async function init() {
   const progressCb=window._loadingPct||function(){};
   let obstacleFiles=[];
   try{obstacleFiles=await (await fetch('obstacles.json')).json()}catch(e){obstacleFiles=[]}
   await assets.init(obstacleFiles,progressCb);
 
-  const canvas=document.getElementById('gameCanvas');
-  const setCanvasSize=()=>{
-    canvas.width=LOGICAL_W;
-    canvas.height=LOGICAL_H;
-    canvas.style.width='100%';
-    canvas.style.height='100%';
-  };
+  const setCanvasSize=()=>{resizeCanvas()};
   setCanvasSize();
   setTimeout(setCanvasSize,100);
 
@@ -1110,8 +1113,8 @@ async function init() {
 
   document.getElementById('highScoreDisplay').textContent=game.highScore;
 
-  window.addEventListener('resize',()=>{setCanvasSize()});
-  window.addEventListener('orientationchange',()=>setTimeout(setCanvasSize,100));
+  window.addEventListener('resize',()=>{resizeCanvas()});
+  window.addEventListener('orientationchange',()=>setTimeout(resizeCanvas,100));
 
   document.getElementById('btnRestart').addEventListener('click',()=>{
     if(game.state==='gameover'||game.state==='playing'){
