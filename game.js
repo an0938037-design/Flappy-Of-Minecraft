@@ -365,7 +365,7 @@ class ObstacleManager {
     return {w:targetW,h:targetH};
   }
 
-  generateZone(chapterId) {
+  generateZone(chapterId, mult=1) {
     const pool=assets.obstacles.filter(o=>o.chapters.includes(chapterId));
     if(!pool.length) return [];
 
@@ -382,8 +382,8 @@ class ObstacleManager {
 
     const zone=[];
     const used={};
-    const maxTotal=randInt(20,32);
-    const typeMax={b:12,t:10,m:10};
+    const maxTotal=randInt(Math.round(20*mult),Math.round(32*mult));
+    const typeMax={b:Math.round(12*mult),t:Math.round(10*mult),m:Math.round(10*mult)};
 
     for(const o of shuffled){
       if(zone.length>=maxTotal) break;
@@ -424,7 +424,8 @@ class ObstacleManager {
     this.obstaclesSpawnedThisZone=0;
 
     for(let i=0;i<4;i++){
-      const zone=this.generateZone(chapterId);
+      const mult=(chapterId===1||(chapterId===2&&i<2))?1.5:1;
+      const zone=this.generateZone(chapterId,mult);
       if(zone.length) this.zones.push(zone);
     }
     this.currentZone=this.zones[0]||[];
