@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Of Minecraft</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="container">
+  <canvas id="gameCanvas"></canvas>
+  <div id="panel">
+    <div id="panel-top">
+      <h1 class="game-title">FLAPPY OF<br>MINECRAFT</h1>
+      <canvas id="logoCanvas" width="200" height="80"></canvas>
+      <div id="char-select">
+        <button class="char-btn active" data-char="bee">BEE</button>
+        <button class="char-btn" data-char="parrot">PARROT</button>
+        <button class="char-btn" data-char="bat">BAT</button>
+      </div>
+      <button id="playBtn">▶ PLAY</button>
+    </div>
+    <div id="panel-bottom">
+      <div id="webcam-area" style="display:none">
+        <video id="webcamVideo" playsinline style="display:none"></video>
+        <canvas id="webcamCanvas"></canvas>
+      </div>
+      <div id="stats">
+        <div class="stat-row"><span class="stat-label">Score</span><span class="stat-value" id="scoreDisplay">0</span></div>
+        <div class="stat-row"><span class="stat-label">Best</span><span class="stat-value" id="highScoreDisplay">0</span></div>
+        <div class="stat-row"><span class="stat-label">Chapter</span><span class="stat-value" id="chapterDisplay">1</span></div>
+        <div class="stat-row"><span class="stat-label">Time</span><span class="stat-value" id="timerDisplay">40</span></div>
+        <div class="stat-row"><span class="stat-label">Speed</span><span class="stat-value" id="speedDisplay">1.0</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<canvas id="cloudGenCanvas" style="display:none"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="camera.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
