@@ -20,13 +20,14 @@ const BLOCK_SIZE = 40;
 const GROUND_LAYERS = 5;
 const GROUND_Y = LOGICAL_H - GROUND_LAYERS * BLOCK_SIZE;
 const BIRD_SIZE = 45;
-const OBSTACLE_MAX_PX = 200;
-const OBSTACLE_MAX_PCT = 0.2;
-const MAX_HEIGHT_BOTTOM = 300;
-const MAX_HEIGHT_MID = 150;
-const MAX_HEIGHT_TOP = 200;
-const GAP_SIZE = 450;
-const BASE_SPAWN_DIST = 875;
+const OBSTACLE_MAX_PX = 130;
+const OBSTACLE_MAX_PCT = 0.13;
+const MAX_HEIGHT_BOTTOM = 180;
+const MAX_HEIGHT_MID = 120;
+const MAX_HEIGHT_TOP = 140;
+const GAP_SIZE = 400;
+const BASE_SPAWN_DIST = 700;
+const MIN_OBSTACLES_PER_ZONE = 2;
 
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
@@ -50,6 +51,7 @@ function rand(a,b){return a+Math.random()*(b-a)}
 function randInt(a,b){return Math.floor(rand(a,b+1))}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 function lerp(a,b,t){return a+(b-a)*t}
+function seededRandom(seed){let s=seed;return function(){s=(s*1664525+1013904223)&0xFFFFFFFF;return (s>>>0)/0xFFFFFFFF}}
 
 // ========== TIGHT BOUNDING BOX ==========
 function computeTightBoundingBox(src){
@@ -189,27 +191,32 @@ class Terrain {
   constructor() {
     this.cols=new Map();
     this.offset=0;
-    this.chunkSize=30;
-    this.oreCount={cl0:0,in0:0};
-    this.oreMax={cl0:3,in0:2};
+    this.seed=0;
+    this.rng=null;
     this.zoneOreReset=0;
+  }
+
+  setSeed(seed){
+    this.seed=seed;
+    this.cols.clear();
+    this.rng=seededRandom(seed);
   }
 
   generateColumn(idx) {
     const layers=[];
     layers[0]='se0'; layers[1]='se0';
-    const r2=Math.random();
+    const r2=this.rng();
     layers[2]=r2<0.2?'se0':'dt0';
-    const r3=Math.random();
+    const r3=this.rng();
     let l3='dt0';
-    if(r3<0.1&&this.oreCount.cl0<this.oreMax.cl0){l3='cl0';this.oreCount.cl0++}
-    else if(r3<0.05&&this.oreCount.in0<this.oreMax.in0){l3='in0';this.oreCount.in0++}
+    if(r3<0.1) l3='cl0';
+    else if(r3<0.05) l3='in0';
     layers[3]=l3;
-    layers[4]=Math.random()<0.1?'gs1':'gs0';
+    layers[4]=this.rng()<0.1?'gs1':'gs0';
     return layers;
   }
 
-  resetOreCount(){this.oreCount={cl0:0,in0:0}}
+  resetOreCount(){}
 
   getCol(idx) {
     if(!this.cols.has(idx)) this.cols.set(idx,this.generateColumn(idx));
@@ -344,6 +351,7 @@ class ObstacleManager {
     this.nextSpawnX=0;
     this.generatedZones=0;
     this.zoneSpawnCounts={};
+    this.obstaclesSpawnedThisZone=0;
   }
 
   getScaledDims(img,canvasW,pos) {
@@ -399,6 +407,7 @@ class ObstacleManager {
     this.active=[];
     this.generatedZones=0;
     this.zoneSpawnCounts={};
+    this.obstaclesSpawnedThisZone=0;
 
     for(let i=0;i<4;i++){
       const zone=this.generateZone(chapterId);
@@ -411,6 +420,7 @@ class ObstacleManager {
     if(!this.currentZone||this.zoneSpawnIdx>=this.currentZone.length){
       this.zoneIdx++;
       this.generatedZones++;
+      this.obstaclesSpawnedThisZone=0;
       if(this.zoneIdx>=this.zones.length) this.zones.push(this.generateZone(game.currentChapter));
       this.currentZone=this.zones[this.zoneIdx]||[];
       this.zoneSpawnIdx=0;
@@ -454,6 +464,7 @@ class ObstacleManager {
 
     const obs={ data, img, x, y, dim };
     this.active.push(obs);
+    this.obstaclesSpawnedThisZone++;
 
     const sp=Math.floor(BASE_SPAWN_DIST*(150/Math.max(game.currentSpeed,50)));
     this.nextSpawnX=x+dim.w+Math.max(sp,80);
@@ -641,6 +652,7 @@ class Game {
     this.webcamRafId=null;
     this.chapterNotif=null;
     this.currentSkyColor='#78A7FF';
+    this.groundSeed=0;
 
     this.setupUI();
     this.setupControls();
@@ -763,6 +775,8 @@ class Game {
     this.canvas.width=LOGICAL_W;
     this.canvas.height=LOGICAL_H;
     this.bird.init(LOGICAL_W,LOGICAL_H);
+    this.groundSeed=Math.floor(Math.random()*10000);
+    this.terrain.setSeed(this.groundSeed);
     this.terrain.offset=0;
     this.terrain.cols.clear();
     this.terrain.resetOreCount();
@@ -798,7 +812,7 @@ class Game {
       this.terrain.update(dt,this.currentSpeed*0.5);
       this.oreTimer+=dt;
       const curZone=Math.floor(this.oreTimer/10);
-      if(curZone!==this.terrain.zoneOreReset){this.terrain.resetOreCount();this.terrain.zoneOreReset=curZone}
+      if(curZone!==this.terrain.zoneOreReset){this.groundSeed=Math.floor(Math.random()*10000);this.terrain.setSeed(this.groundSeed);this.terrain.zoneOreReset=curZone}
 
       const groundY=GROUND_Y;
       if(this.bird.update(dt,groundY)){ this.gameOver(); return; }
