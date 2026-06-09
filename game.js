@@ -5,9 +5,13 @@ const OBSTACLE_FILES = [
   'bv3-12-a-3.png','bv3-12-b-3.png','mn1-2-o-4.png','mv2-2-b-3.png','tn1-2-o-4.png'
 ];
 
+const CHAPTER_DURATION = 40;
+const MIN_SPEED_CH1 = 150;
+const MAX_SPEED_CH1 = 250;
+
 const CHAPTERS = [
-  { id:1, duration:120, baseMinSpeed:150, baseMaxSpeed:200 },
-  { id:2, duration:120, baseMinSpeed:225, baseMaxSpeed:300 }
+  { id:1, duration:CHAPTER_DURATION },
+  { id:2, duration:CHAPTER_DURATION }
 ];
 
 const CHAR_MAP = {
@@ -31,6 +35,7 @@ function parseObstacleName(name) {
 function rand(a,b){return a+Math.random()*(b-a)}
 function randInt(a,b){return Math.floor(rand(a,b+1))}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
+function lerp(a,b,t){return a+(b-a)*t}
 
 // ========== CHROMA KEY ==========
 function createChromaKeyedImage(srcImg, keyColor, tolerance) {
@@ -254,10 +259,10 @@ class Bird {
     this.y=canvasH*0.35;
     this.vy=0;
     const h6=canvasH/600;
-    this.gravity=1000*h6;
-    this.jumpFull=260*h6;
-    this.jumpHand=180*h6;
-    this.maxFallSpeed=550*h6;
+    this.gravity=600*h6;
+    this.jumpFull=400*h6;
+    this.jumpHand=320*h6;
+    this.maxFallSpeed=400*h6;
     this.rotation=0;
     this.cooldown=0;
   }
@@ -320,7 +325,7 @@ class ObstacleManager {
   }
 
   getScaledDims(img,canvasW) {
-    const maxW=Math.min(50,Math.floor(canvasW*0.08));
+    const maxW=Math.min(60,Math.floor(canvasW*0.12));
     const nw=img.naturalWidth||img.width||50;
     const nh=img.naturalHeight||img.height||50;
     const targetW=Math.min(maxW,nw);
@@ -479,27 +484,22 @@ class ObstacleManager {
   zonesCompleted(){return this.generatedZones}
 }
 
-// ========== DAY/NIGHT CYCLE ==========
-class DayNightCycle {
-  getColor(chapterId,elapsed,duration) {
-    if(!duration||duration<=0) return '#78A7FF';
-    const p=Math.min(1,elapsed/duration);
-    if(chapterId===1){
-      if(p<0.8) return '#78A7FF';
-      return lerpColor('#78A7FF','#FFA07A',(p-0.8)/0.2);
-    } else {
-      if(p<0.1) return lerpColor('#FFA07A','#111147',p/0.1);
-      return '#111147';
-    }
+// ========== SKY COLOR ==========
+function getSkyColor(chapterId,progress) {
+  const t=Math.min(1,Math.max(0,progress));
+  if(t<0.5){
+    const p=t*2;
+    return `rgb(${Math.round(lerp(120,255,p))},${Math.round(lerp(167,160,p))},${Math.round(lerp(255,122,p))})`;
+  } else {
+    const p=(t-0.5)*2;
+    return `rgb(${Math.round(lerp(255,17,p))},${Math.round(lerp(160,17,p))},${Math.round(lerp(122,71,p))})`;
   }
 }
-
-function lerpColor(c1,c2,t){
-  t=Math.max(0,Math.min(1,t));
-  const r1=parseInt(c1.slice(1,3),16),g1=parseInt(c1.slice(3,5),16),b1=parseInt(c1.slice(5,7),16);
-  const r2=parseInt(c2.slice(1,3),16),g2=parseInt(c2.slice(3,5),16),b2=parseInt(c2.slice(5,7),16);
-  const r=Math.round(r1+(r2-r1)*t),g=Math.round(g1+(g2-g1)*t),b=Math.round(b1+(b2-b1)*t);
-  return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
+function adjustBrightness(rgb,amt){
+  const m=rgb.match(/\d+/g);
+  if(!m) return rgb;
+  const [r,g,b]=m.map(Number);
+  return `rgb(${clamp(r+amt,0,255)},${clamp(g+amt,0,255)},${clamp(b+amt,0,255)})`;
 }
 
 // ========== HAND TRACKER ==========
@@ -594,7 +594,6 @@ class Game {
     this.bird=new Bird();
     this.terrain=new Terrain();
     this.obstacles=new ObstacleManager();
-    this.dayNight=new DayNightCycle();
     this.clouds=[];
     this.handTracker=new HandTracker();
     this.camera=new Camera(document.getElementById('webcamVideo'));
@@ -700,7 +699,7 @@ class Game {
 
     const ch=CHAPTERS[0];
     this.chapterStartTime=performance.now();
-    this.currentSpeed=ch.baseMinSpeed;
+    this.currentSpeed=MIN_SPEED_CH1;
 
     this.canvas.width=this.canvas.offsetWidth;
     this.canvas.height=this.canvas.offsetHeight;
@@ -734,7 +733,9 @@ class Game {
       const elapsed=(performance.now()-this.chapterStartTime)/1000;
       const ch=CHAPTERS[this.currentChapter-1];
       this.chapterProgress=ch?Math.min(1,elapsed/ch.duration):0;
-      this.currentSpeed=ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*this.chapterProgress;
+      const minS=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
+      const maxS=MAX_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
+      this.currentSpeed=minS+(maxS-minS)*this.chapterProgress;
 
       this.terrain.update(dt,this.currentSpeed*0.5);
       this.oreTimer+=dt;
@@ -797,11 +798,11 @@ class Game {
     const w=this.canvas.width, h=this.canvas.height;
     if(!w||!h) return;
 
-    const ch=CHAPTERS[this.currentChapter-1];
-    const skyDuration=ch?ch.duration:40;
-    const skyElapsed=skyDuration*this.chapterProgress;
-    const skyColor=this.dayNight.getColor(this.currentChapter,skyElapsed,skyDuration);
-    ctx.fillStyle=skyColor;
+    const skyColor=this.currentChapter<=CHAPTERS.length?getSkyColor(this.currentChapter,this.chapterProgress):'rgb(17,17,71)';
+    const grad=ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,skyColor);
+    grad.addColorStop(0.7,adjustBrightness(skyColor,-40));
+    ctx.fillStyle=grad;
     ctx.fillRect(0,0,w,h);
 
     for(const c of this.clouds) if(c.img) ctx.drawImage(c.img,c.x,c.y);
@@ -870,7 +871,7 @@ class Game {
     const elapsed=(performance.now()-this.chapterStartTime)/1000;
     const ch=CHAPTERS[this.currentChapter-1];
     if(ch) document.getElementById('timerDisplay').textContent=Math.ceil(Math.max(0,ch.duration-elapsed));
-    if(ch) document.getElementById('speedDisplay').textContent=((ch.baseMinSpeed+(ch.baseMaxSpeed-ch.baseMinSpeed)*this.chapterProgress)/100).toFixed(1);
+    if(ch) document.getElementById('speedDisplay').textContent=(this.currentSpeed/100).toFixed(1);
   }
 
   gameOver() {
@@ -930,7 +931,7 @@ class Game {
     const ch=CHAPTERS[this.currentChapter-1];
     if(ch){
       this.chapterStartTime=performance.now();
-      this.currentSpeed=ch.baseMinSpeed;
+      this.currentSpeed=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
       this.terrain.resetOreCount();
       this.terrain.cols.clear();
       this.terrain.offset=0;
