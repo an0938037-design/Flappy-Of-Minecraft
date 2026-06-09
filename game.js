@@ -27,7 +27,9 @@ const MAX_HEIGHT_MID = 120;
 const MAX_HEIGHT_TOP = 140;
 const GAP_SIZE = 400;
 const BASE_SPAWN_DIST = 700;
-const MIN_OBSTACLES_PER_ZONE = 2;
+const MIN_BOTTOM_PER_ZONE = 4;
+const MIN_MID_PER_ZONE = 3;
+const MIN_TOP_PER_ZONE = 3;
 
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
@@ -371,7 +373,6 @@ class ObstacleManager {
 
     const counts={b:0,t:0,m:0};
 
-    // Weighted selection: nature type weight 5, others weight 1
     const weighted=[];
     for(const o of pool){
       const w=o.type==='n'?5:1;
@@ -384,15 +385,30 @@ class ObstacleManager {
     const zone=[];
     const used={};
     const maxTotal=randInt(10,18);
+    const typeMax={b:8,t:6,m:6};
 
     for(const o of shuffled){
       if(zone.length>=maxTotal) break;
-      if(counts[o.pos]>= {b:6,t:6,m:3}[o.pos]) continue;
+      if(counts[o.pos]>=typeMax[o.pos]) continue;
       const key=o.file;
-      if(o.maxPerZone>0&&(used[key]||0)>=o.maxPerZone) continue;
+      const maxPerZone=Math.round(o.maxPerZone*1.5);
+      if(maxPerZone>0&&(used[key]||0)>=maxPerZone) continue;
       if(!zone.some(z=>z.file===key)){
         zone.push(o);
         counts[o.pos]++; used[key]=(used[key]||0)+1;
+      }
+    }
+
+    // Ép đủ tối thiểu mỗi loại
+    const need={b:MIN_BOTTOM_PER_ZONE-counts.b,m:MIN_MID_PER_ZONE-counts.m,t:MIN_TOP_PER_ZONE-counts.t};
+    for(const pos of ['b','m','t']){
+      while(need[pos]>0){
+        const candidates=pool.filter(o=>o.pos===pos&&(!zone.some(z=>z.file===o.file))&&((used[o.file]||0)<Math.round(o.maxPerZone*1.5)));
+        if(!candidates.length) break;
+        const pick=candidates[randInt(0,candidates.length-1)];
+        zone.push(pick);
+        counts[pick.pos]++; used[pick.file]=(used[pick.file]||0)+1;
+        need[pos]--;
       }
     }
 
