@@ -14,6 +14,22 @@ const CHAPTERS = [
   { id:2, duration:CHAPTER_DURATION }
 ];
 
+const LOGICAL_W = 400;
+const LOGICAL_H = 600;
+const BLOCK_SIZE = 40;
+const GROUND_LAYERS = 5;
+const GROUND_Y = LOGICAL_H - GROUND_LAYERS * BLOCK_SIZE;
+const BIRD_SIZE = 45;
+const OBSTACLE_MAX_PX = 200;
+const OBSTACLE_MAX_PCT = 0.5;
+const GAP_SIZE = 200;
+const BASE_SPAWN_DIST = 380;
+
+function aspectFit(cw,ch,iw,ih){
+  const r=iw/ih;
+  return cw/ch>r?{w:ch*r,h:ch}:{w:cw,h:cw/r};
+}
+
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
   parrot:{ crt:'nvo2.jpg', logo:'logo2.png', label:'PARROT' },
@@ -171,7 +187,7 @@ class Terrain {
     const r3=Math.random();
     let l3='dt0';
     if(r3<0.1&&this.oreCount.cl0<this.oreMax.cl0){l3='cl0';this.oreCount.cl0++}
-    else if(r3<0.18&&this.oreCount.in0<this.oreMax.in0){l3='in0';this.oreCount.in0++}
+    else if(r3<0.05&&this.oreCount.in0<this.oreMax.in0){l3='in0';this.oreCount.in0++}
     layers[3]=l3;
     layers[4]=Math.random()<0.1?'gs1':'gs0';
     return layers;
@@ -185,8 +201,7 @@ class Terrain {
   }
 
   setPath(startX,endX) {
-    const bs=this.blockSize||Math.floor(800*0.04);
-    if(bs<4) return;
+    const bs=BLOCK_SIZE;
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
@@ -195,8 +210,7 @@ class Terrain {
   }
 
   revertPath(startX,endX) {
-    const bs=this.blockSize||Math.floor(800*0.04);
-    if(bs<4) return;
+    const bs=BLOCK_SIZE;
     const si=Math.floor(this.offset/bs)+Math.floor(startX/bs);
     const ei=Math.floor(this.offset/bs)+Math.ceil(endX/bs);
     for(let i=si;i<=ei;i++){
@@ -205,8 +219,7 @@ class Terrain {
   }
 
   render(ctx,canvasW,canvasH) {
-    if(!canvasW||!canvasH||canvasH<100) return;
-    const bs=this.blockSize=Math.max(4,Math.floor(canvasH*0.04));
+    const bs=BLOCK_SIZE;
     const colsVisible=Math.ceil(canvasW/bs)+4;
     const startCol=Math.floor(this.offset/bs);
 
@@ -252,8 +265,7 @@ class Bird {
   }
 
   init(canvasW,canvasH) {
-    if(!canvasW||!canvasH||canvasH<50) {canvasW=800;canvasH=600}
-    const s=Math.max(8,Math.floor(canvasH*0.075));
+    const s=Math.max(8,BIRD_SIZE);
     this.w=s; this.h=s;
     this.x=canvasW*0.2;
     this.y=canvasH*0.35;
@@ -325,7 +337,7 @@ class ObstacleManager {
   }
 
   getScaledDims(img,canvasW) {
-    const maxW=Math.min(60,Math.floor(canvasW*0.12));
+    const maxW=Math.min(OBSTACLE_MAX_PX,Math.floor(canvasW*OBSTACLE_MAX_PCT));
     const nw=img.naturalWidth||img.width||50;
     const nh=img.naturalHeight||img.height||50;
     const targetW=Math.min(maxW,nw);
@@ -403,9 +415,8 @@ class ObstacleManager {
     if(!img) return;
 
     const dim=this.getScaledDims(img,canvasW);
-    const bs=Math.max(4,Math.floor(canvasH*0.04));
-    const groundY=canvasH-bs*5;
-    const birdW=Math.max(8,Math.floor(canvasH*0.075));
+    const groundY=GROUND_Y;
+    const birdW=BIRD_SIZE;
 
     let x=this.nextSpawnX;
     const lastObs=this.active[this.active.length-1];
@@ -432,7 +443,7 @@ class ObstacleManager {
     const obs={ data, img, x, y, dim };
     this.active.push(obs);
 
-    const sp=Math.floor(250*(150/Math.max(game.currentSpeed,50)));
+    const sp=Math.floor(BASE_SPAWN_DIST*(150/Math.max(game.currentSpeed,50)));
     this.nextSpawnX=x+dim.w+Math.max(sp,80);
   }
 
@@ -701,19 +712,18 @@ class Game {
     this.chapterStartTime=performance.now();
     this.currentSpeed=MIN_SPEED_CH1;
 
-    this.canvas.width=this.canvas.offsetWidth;
-    this.canvas.height=this.canvas.offsetHeight;
-    this.bird.init(this.canvas.width,this.canvas.height);
-    this.terrain.blockSize=Math.max(4,Math.floor(this.canvas.height*0.04));
+    this.canvas.width=LOGICAL_W;
+    this.canvas.height=LOGICAL_H;
+    this.bird.init(LOGICAL_W,LOGICAL_H);
     this.terrain.offset=0;
     this.terrain.cols.clear();
     this.terrain.resetOreCount();
 
     this.obstacles.initZones(1);
-    this.obstacles.nextSpawnX=this.canvas.width+50;
+    this.obstacles.nextSpawnX=LOGICAL_W+50;
 
     this.clouds=[];
-    for(let i=0;i<6;i++) this.clouds.push(new Cloud(this.canvas.width,this.canvas.height));
+    for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
     if(!this.camera.running) this.camera.start().catch(()=>{});
 
     this.lastTime=performance.now();
@@ -742,14 +752,13 @@ class Game {
       const curZone=Math.floor(this.oreTimer/10);
       if(curZone!==this.terrain.zoneOreReset){this.terrain.resetOreCount();this.terrain.zoneOreReset=curZone}
 
-      const bs=Math.max(4,Math.floor(this.canvas.height*0.04));
-      const groundY=this.canvas.height-bs*5;
+      const groundY=GROUND_Y;
       if(this.bird.update(dt,groundY)){ this.gameOver(); return; }
 
       this.obstacles.update(dt,this.currentSpeed);
       const lastObs=this.obstacles.active[this.obstacles.active.length-1];
-      if(!lastObs||lastObs.x+lastObs.dim.w<this.canvas.width){
-        this.obstacles.spawnNext(this.canvas.width,this.canvas.height);
+      if(!lastObs||lastObs.x+lastObs.dim.w<LOGICAL_W){
+        this.obstacles.spawnNext(LOGICAL_W,LOGICAL_H);
       }
 
       this.score+=this.obstacles.getPassed(this.bird.x);
@@ -936,11 +945,11 @@ class Game {
       this.terrain.cols.clear();
       this.terrain.offset=0;
       this.obstacles.initZones(this.currentChapter);
-      this.obstacles.nextSpawnX=this.canvas.width+50;
-      this.bird.init(this.canvas.width,this.canvas.height);
+      this.obstacles.nextSpawnX=LOGICAL_W+50;
+      this.bird.init(LOGICAL_W,LOGICAL_H);
       this.bird.vy=0;
       this.clouds=[];
-      for(let i=0;i<6;i++) this.clouds.push(new Cloud(this.canvas.width,this.canvas.height));
+      for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
     }
 
     this.chapterNotif={text:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
@@ -958,8 +967,13 @@ async function init() {
 
   const canvas=document.getElementById('gameCanvas');
   const setCanvasSize=()=>{
-    canvas.width=Math.max(100,canvas.offsetWidth);
-    canvas.height=Math.max(100,canvas.offsetHeight);
+    canvas.width=LOGICAL_W;
+    canvas.height=LOGICAL_H;
+    const availW=window.innerWidth*0.7;
+    const availH=window.innerHeight;
+    const fit=aspectFit(availW,availH,LOGICAL_W,LOGICAL_H);
+    canvas.style.width=fit.w+'px';
+    canvas.style.height=fit.h+'px';
   };
   setCanvasSize();
   setTimeout(setCanvasSize,100);
@@ -969,11 +983,7 @@ async function init() {
 
   document.getElementById('highScoreDisplay').textContent=game.highScore;
 
-  window.addEventListener('resize',()=>{
-    canvas.width=Math.max(100,canvas.offsetWidth);
-    canvas.height=Math.max(100,canvas.offsetHeight);
-    if(game.bird) game.bird.init(canvas.width,canvas.height);
-  });
+  window.addEventListener('resize',()=>{setCanvasSize()});
 
   document.addEventListener('keydown',(e)=>{
     if((e.code==='Space'||e.code==='ArrowUp')&&game.state==='playing'){
