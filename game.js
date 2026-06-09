@@ -682,7 +682,7 @@ class Game {
     this.endless=false;
     this.maxHp=3;
     this.hp=3;
-    this.speedMult=1;
+    this.speedOffset=0;
     this.hpMaxMult=1;
     this.hitCooldown=0;
     this.healTimer=0;
@@ -802,7 +802,7 @@ class Game {
     this.state='playing';
     this.score=0;
     this.hp=this.maxHp;
-    this.speedMult=1;
+    this.speedOffset=0;
     this.hpMaxMult=1;
     this.healTimer=0;
     this.currentChapter=1;
@@ -851,7 +851,7 @@ class Game {
       this.chapterProgress=Math.min(1,elapsed/dur);
       const minS=MIN_SPEED_CH1*Math.pow(1.5,this.currentChapter-1);
       const maxS=MAX_SPEED_CH1*Math.pow(1.5,this.currentChapter-1)*this.hpMaxMult;
-      this.currentSpeed=(minS+(maxS-minS)*this.chapterProgress)*this.speedMult;
+      this.currentSpeed=(minS+(maxS-minS)*this.chapterProgress)+this.speedOffset;
 
       this.terrain.update(dt,this.currentSpeed*0.5);
       this.oreTimer+=dt;
@@ -865,8 +865,8 @@ class Game {
         if(this.hp<=0){ this.gameOver(); return; }
         this.hp--;
         this.hitCooldown=0.5;
-        this.speedMult*=1.02;
-        this.hpMaxMult*=1.5;
+        this.speedOffset+=3;
+        this.hpMaxMult*=1.25;
         this.bird.vy=-this.bird.jumpFull*1.5;
       }
 
@@ -876,7 +876,7 @@ class Game {
           this.healTimer-=5;
           if(this.hp<this.maxHp){
             this.hp++;
-            this.speedMult*=0.98;
+            this.speedOffset-=5;
           }
         }
       }
@@ -897,8 +897,8 @@ class Game {
         this.hitCooldown=0.5;
         const idx=this.obstacles.active.indexOf(hitObs);
         if(idx>=0) this.obstacles.active.splice(idx,1);
-        this.speedMult*=1.02;
-        this.hpMaxMult*=1.5;
+        this.speedOffset+=3;
+        this.hpMaxMult*=1.25;
       }
 
       if(elapsed>=dur||this.obstacles.zonesCompleted()>=4){
