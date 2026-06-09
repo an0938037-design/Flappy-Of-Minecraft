@@ -506,49 +506,16 @@ class ObstacleManager {
   checkCollision(birdBounds) {
     for(const o of this.active){
       const bbox=o.data.tightBBox;
-      if(!bbox) {
+      if(bbox){
+        const scX=o.dim.w/(o.img.naturalWidth||o.img.width||o.dim.w);
+        const scY=o.dim.h/(o.img.naturalHeight||o.img.height||o.dim.h);
+        const tx=o.x+bbox.x*scX, ty=o.y+bbox.y*scY;
+        const tw=bbox.width*scX, th=bbox.height*scY;
+        if(birdBounds.x<tx+tw&&birdBounds.x+birdBounds.w>tx&&
+           birdBounds.y<ty+th&&birdBounds.y+birdBounds.h>ty) return true;
+      } else {
         if(birdBounds.x<o.x+o.dim.w&&birdBounds.x+birdBounds.w>o.x&&
            birdBounds.y<o.y+o.dim.h&&birdBounds.y+birdBounds.h>o.y) return true;
-        continue;
-      }
-      const scX=o.dim.w/(o.img.naturalWidth||o.img.width||o.dim.w);
-      const scY=o.dim.h/(o.img.naturalHeight||o.img.height||o.dim.h);
-      const tx=o.x+bbox.x*scX, ty=o.y+bbox.y*scY;
-      const tw=bbox.width*scX, th=bbox.height*scY;
-      if(birdBounds.x<tx+tw&&birdBounds.x+birdBounds.w>tx&&
-         birdBounds.y<ty+th&&birdBounds.y+birdBounds.h>ty){
-        if(this._pixelHit(birdBounds,o)) return true;
-      }
-    }
-    return false;
-  }
-
-  _pixelHit(birdBounds,o){
-    if(!o._pxData){
-      const src=o.img;
-      if(!src) return true;
-      const w=src.naturalWidth||src.width||o.dim.w;
-      const h=src.naturalHeight||src.height||o.dim.h;
-      const c=document.createElement('canvas');
-      c.width=w; c.height=h;
-      const cx=c.getContext('2d');
-      cx.drawImage(src,0,0);
-      o._pxData=cx.getImageData(0,0,c.width,c.height);
-    }
-    const pixels=o._pxData, w=pixels.width, h=pixels.height;
-    const scX=o.dim.w/w, scY=o.dim.h/h;
-    const bbox=o.data.tightBBox;
-    const oL=Math.max(birdBounds.x,o.x+bbox.x*scX);
-    const oR=Math.min(birdBounds.x+birdBounds.w,o.x+(bbox.x+bbox.width)*scX);
-    const oT=Math.max(birdBounds.y,o.y+bbox.y*scY);
-    const oB=Math.min(birdBounds.y+birdBounds.h,o.y+(bbox.y+bbox.height)*scY);
-    for(let py=oT;py<oB;py+=3){
-      const iy=Math.floor((py-o.y)/scY);
-      if(iy<0||iy>=h) continue;
-      for(let xi=oL;xi<oR;xi+=3){
-        const ix=Math.floor((xi-o.x)/scX);
-        if(ix<0||ix>=w) continue;
-        if(pixels.data[(iy*w+ix)*4+3]>30) return true;
       }
     }
     return false;
