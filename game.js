@@ -164,7 +164,7 @@ class Terrain {
 
   render(ctx,canvasW,canvasH) {
     if(!canvasW||!canvasH||canvasH<100) return;
-    const bs=this.blockSize=Math.max(4,Math.floor((canvasH*0.2)/5));
+    const bs=this.blockSize=Math.max(4,Math.floor(canvasH*0.04));
     const groundH=bs*5;
     const groundY=canvasH-groundH;
     const colsVisible=Math.ceil(canvasW/bs)+4;
@@ -211,9 +211,9 @@ class Bird {
 
   init(canvasW,canvasH) {
     if(!canvasW||!canvasH||canvasH<50) {canvasW=800;canvasH=600}
-    const bs=Math.max(4,Math.floor((canvasH*0.2)/5));
-    this.w=bs*2.5;
-    this.h=bs*2.5;
+    this.blockRef=Math.max(4,Math.floor(canvasH*0.04));
+    this.w=this.blockRef;
+    this.h=this.blockRef;
     this.x=canvasW*0.2;
     this.y=canvasH*0.35;
     this.vy=0;
@@ -259,8 +259,8 @@ class Bird {
   }
 
   getBounds() {
-    const pad=this.w*0.15;
-    return { x:this.x+pad, y:this.y+pad, w:this.w-pad*2, h:this.h-pad*2 };
+    const s=this.blockRef||this.w;
+    return { x:this.x, y:this.y, w:s, h:s };
   }
 }
 
@@ -343,16 +343,15 @@ class ObstacleManager {
     const img=data.img;
     if(!img||!img.naturalWidth) return;
 
-    const bs=Math.floor((canvasH*0.2)/5);
+    const bs=Math.max(4,Math.floor(canvasH*0.04));
     const groundH=bs*5;
     const groundY=canvasH-groundH;
-    const birdW=bs*2.5;
+    const birdW=bs;
 
     let x=this.nextSpawnX;
     const lastObs=this.active[this.active.length-1];
     if(lastObs){
       const lastP=lastObs.data.pos, currP=data.pos;
-      const birdW=Math.floor((canvasH*0.2)/5)*2.5;
       let minGap=birdW*2;
       if(lastP!==currP){
         const p=lastP+currP;
@@ -658,7 +657,7 @@ class Game {
     this.canvas.width=this.canvas.offsetWidth;
     this.canvas.height=this.canvas.offsetHeight;
     this.bird.init(this.canvas.width,this.canvas.height);
-    this.terrain.blockSize=Math.floor((this.canvas.height*0.2)/5);
+    this.terrain.blockSize=Math.max(4,Math.floor(this.canvas.height*0.04));
     this.terrain.offset=0;
     this.terrain.cols.clear();
     this.terrain.resetOreCount();
@@ -706,7 +705,7 @@ class Game {
       this.score+=this.obstacles.getPassed(this.bird.x);
 
       const bb=this.bird.getBounds();
-      const bs=Math.max(4,Math.floor((this.canvas.height*0.2)/5));
+      const bs=Math.max(4,Math.floor(this.canvas.height*0.04));
       const groundY=this.canvas.height-bs*5;
       if(bb.y+bb.h>=groundY||bb.y<=0){ this.gameOver(); return; }
       if(this.obstacles.checkCollision(bb)){ this.gameOver(); return; }
