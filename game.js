@@ -20,8 +20,7 @@ const OBSTACLE_MAX_PCT = 0.170;
 const MAX_HEIGHT_BOTTOM = 236;
 const MAX_HEIGHT_MID = 159;
 const MAX_HEIGHT_TOP = 184;
-const GAP_SIZE = 504;
-const BASE_SPAWN_DIST = 320;
+const BASE_SPAWN_DIST = 80;
 const MIN_BOTTOM_PER_ZONE = 4;
 const MIN_MID_PER_ZONE = 3;
 const MIN_TOP_PER_ZONE = 3;
@@ -210,8 +209,8 @@ class Terrain {
     layers[2]=r2<0.2?'se0':'dt0';
     const r3=this.rng();
     let l3='dt0';
-    if(r3<0.1) l3='cl0';
-    else if(r3<0.05) l3='in0';
+    if(r3<0.05) l3='in0';
+    else if(r3<0.1) l3='cl0';
     layers[3]=l3;
     layers[4]=this.rng()<0.1?'gs1':'gs0';
     return layers;
@@ -389,8 +388,8 @@ class ObstacleManager {
 
     const zone=[];
     const used={};
-    const maxTotal=randInt(Math.round(20*mult),Math.round(32*mult));
-    const typeMax={b:Math.round(12*mult),t:Math.round(10*mult),m:Math.round(10*mult)};
+    const maxTotal=randInt(Math.round(40*mult),Math.round(60*mult));
+    const typeMax={b:Math.round(24*mult),t:Math.round(20*mult),m:Math.round(20*mult)};
 
     for(const o of shuffled){
       if(zone.length>=maxTotal) break;
@@ -430,7 +429,7 @@ class ObstacleManager {
     this.zoneSpawnCounts={};
     this.obstaclesSpawnedThisZone=0;
 
-    for(let i=0;i<4;i++){
+    for(let i=0;i<6;i++){
       const mult=(chapterId===1||(chapterId===2&&i<2))?1.5:1;
       const zone=this.generateZone(chapterId,mult);
       if(zone.length) this.zones.push(zone);
@@ -466,14 +465,14 @@ class ObstacleManager {
     const lastObs=this.active[this.active.length-1];
     if(lastObs){
       const lastP=lastObs.data.pos, currP=data.pos;
-      let minGap=birdW*2;
+      let minGap=birdW*0.8;
       if(lastP!==currP){
         const p=lastP+currP;
-        if(p==='mt'||p==='tm') minGap=birdW*1.5;
-        else if(p==='mb'||p==='bm') minGap=birdW*2.5;
+        if(p==='mt'||p==='tm') minGap=birdW*0.6;
+        else if(p==='mb'||p==='bm') minGap=birdW*1.2;
       }
       const desiredX=lastObs.x+lastObs.dim.w+minGap;
-      if(x<desiredX) x=desiredX+30;
+      if(x<desiredX) x=desiredX+15;
     }
     if(x<canvasW) x=canvasW+50;
 
@@ -489,7 +488,7 @@ class ObstacleManager {
     this.obstaclesSpawnedThisZone++;
 
     const sp=Math.floor(BASE_SPAWN_DIST*(150/Math.max(game.currentSpeed,50)));
-    this.nextSpawnX=x+dim.w+Math.max(sp,120);
+    this.nextSpawnX=x+dim.w+Math.max(sp,50);
   }
 
   update(dt,speed) {
@@ -587,6 +586,7 @@ class HandTracker {
 
   async init(camera,callback) {
     try {
+      if(typeof Hands==='undefined') throw new Error('MediaPipe Hands library not loaded');
       this.hands=new Hands({
         locateFile:(f)=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f
       });
@@ -906,20 +906,22 @@ class Game {
         return;
       }
 
-      if(!this._villageObs) this._villageObs=new Set();
+      if(!this._villageObs) this._villageObs=new Map();
       let hasActiveVillage=false;
       for(const o of this.obstacles.active){
         if(o.data.pos==='b'&&o.data.type==='v'){
           const id=o.data.file+'_'+Math.floor(o.x/100);
           if(!this._villageObs.has(id)){
             this.terrain.setPath(o.x,o.x+o.dim.w);
-            this._villageObs.add(id);
+            this._villageObs.set(id,{startX:o.x,endX:o.x+o.dim.w});
           }
           hasActiveVillage=true;
         }
       }
       if(!hasActiveVillage&&this._villageObs.size){
-        this.terrain.revertPath(0,this.canvas.width*2);
+        for(const range of this._villageObs.values()){
+          this.terrain.revertPath(range.startX,range.endX);
+        }
         this._villageObs.clear();
       }
 
@@ -1131,7 +1133,7 @@ function resizeCanvas(){
 async function init() {
   const progressCb=window._loadingPct||function(){};
   let obstacleFiles=[];
-  try{obstacleFiles=await (await fetch('obstacles.json')).json()}catch(e){obstacleFiles=[]}
+  try{obstacleFiles=await (await fetch('obstacles.json')).json()}catch(e){obstacleFiles=["bn1-12-a-2.png","bn1-2-b-2.png","bn1-2-c-2.png","bv1-1-o-3.png","bv2-2-a-3.png","bv3-12-a-3.png","bv3-2-b-3.png","mn1-2-o-4.png","mv2-2-b-3.png","tn1-2-o-4.png"]}
   await assets.init(obstacleFiles,progressCb);
 
   const setCanvasSize=()=>{resizeCanvas()};
