@@ -126,7 +126,7 @@ class AssetManager {
     }
 
     for (const [ch,map] of Object.entries(CHAR_MAP)) {
-      this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt,ch+' crt',false);
+      this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt,ch+' crt',map.crt.endsWith('.jpg'));
       done(ch+' crt');
       this.images['logo_'+ch] = await this.load(ASSETS + 'logo/' + map.logo,ch+' logo');
       done(ch+' logo');
