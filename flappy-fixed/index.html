@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy Of Minecraft</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="mainContainer">
+  <div id="gameArea">
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+      <div id="chapterText"></div>
+      <div id="score">Score: 0</div>
+      <div id="gameOver">Game Over<br><small>Click/Tap to restart</small></div>
+    </div>
+  </div>
+  <div id="controlArea">
+    <h1 class="game-title">FLAPPY OF<br>MINECRAFT</h1>
+    <canvas id="logoCanvas" width="200" height="80"></canvas>
+    <div id="char-select">
+      <button class="char-btn active" data-char="bee">BEE</button>
+      <button class="char-btn" data-char="parrot">PARROT</button>
+      <button class="char-btn" data-char="bat">BAT</button>
+    </div>
+    <label id="endlessToggle" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0;font-size:14px;color:#ffd700">
+      <input type="checkbox" id="endlessCb"> ♾️ Endless
+    </label>
+    <button id="playBtn">▶ PLAY</button>
+    <div id="webcam-area" style="display:none">
+      <video id="webcamVideo" playsinline style="display:none"></video>
+      <canvas id="webcamCanvas"></canvas>
+    </div>
+    <div id="stats">
+      <div class="stat-row"><span class="stat-label">Score</span><span class="stat-value" id="scoreDisplay">0</span></div>
+      <div class="stat-row"><span class="stat-label">Best</span><span class="stat-value" id="highScoreDisplay">0</span></div>
+      <div class="stat-row"><span class="stat-label">Chapter</span><span class="stat-value" id="chapterDisplay">1</span></div>
+      <div class="stat-row"><span class="stat-label">Time</span><span class="stat-value" id="timerDisplay">40</span></div>
+      <div class="stat-row"><span class="stat-label">Speed</span><span class="stat-value" id="speedDisplay">2.8</span></div>
+    </div>
+    <button class="ctrl-btn" id="btnRestart">↻ CHƠI LẠI</button>
+    <button class="ctrl-btn" id="btnFullscreen">⛶ TOÀN MÀN HÌNH</button>
+  </div>
+</div>
+
+<video id="inputVideo" autoplay playsinline muted></video>
+<div id="loadingOverlay">
+  <div style="font-size:clamp(14px,2vw,24px);margin-bottom:12px">Loading Assets...</div>
+  <div id="loadPct" style="font-size:clamp(28px,5vw,48px);font-weight:bold">0%</div>
+  <div style="margin-top:12px;width:clamp(120px,20vw,240px);height:8px;background:#333;border-radius:4px;overflow:hidden">
+    <div id="loadBar" style="width:0%;height:100%;background:#ffd700;border-radius:4px;transition:width 0.2s"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script>
+window._loadingPct=function(p){var el=document.getElementById('loadPct');if(el)el.textContent=p+'%';var bar=document.getElementById('loadBar');if(bar)bar.style.width=p+'%';if(p>=100)setTimeout(function(){var o=document.getElementById('loadingOverlay');if(o){o.style.opacity='0';setTimeout(function(){if(o.parentNode)o.parentNode.removeChild(o)},500)}},400)};
+</script>
+<script src="camera.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

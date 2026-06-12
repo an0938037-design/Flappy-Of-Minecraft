@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tug of Clap</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#1a1a2e;color:#fff}
+#app{width:100%;height:100%;display:flex;flex-direction:column;position:relative}
+
+/* SETUP SCREEN */
+#setup-screen{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+#setup-screen.hidden{opacity:0;pointer-events:none}
+#setup-screen h1{font-size:4em;margin-bottom:10px;background:linear-gradient(90deg,#e74c3c,#3498db);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
+#setup-screen .subtitle{font-size:1.2em;color:#aaa;margin-bottom:40px}
+.setup-row{display:flex;gap:40px;margin-bottom:30px}
+.setup-team{text-align:center;padding:20px;border-radius:12px;min-width:180px}
+.setup-team.red{background:rgba(231,76,60,.15);border:2px solid #e74c3c}
+.setup-team.blue{background:rgba(52,152,219,.15);border:2px solid #3498db}
+.setup-team label{display:block;font-size:1em;margin-bottom:8px;font-weight:600}
+.setup-team input{width:80px;padding:8px 12px;font-size:1.4em;text-align:center;border-radius:8px;border:2px solid #444;background:#2a2a4a;color:#fff;font-weight:700}
+.setup-team input:focus{outline:none;border-color:#e74c3c}
+.setup-team.blue input:focus{border-color:#3498db}
+.setup-team .team-label{font-size:1.2em;font-weight:700;margin-bottom:10px}
+.setup-team .team-label.red{color:#e74c3c}
+.setup-team .team-label.blue{color:#3498db}
+.camera-mode{margin-bottom:25px;display:flex;align-items:center;gap:12px}
+.camera-mode label{color:#ccc;font-size:.95em}
+#cam-toggle{padding:8px 18px;border-radius:8px;border:2px solid #555;background:#2a2a4a;color:#fff;cursor:pointer;font-size:.95em;transition:all .2s}
+#cam-toggle:hover{border-color:#888}
+#cam-toggle.active{border-color:#f1c40f;background:rgba(241,196,15,.15)}
+#start-btn{padding:16px 60px;font-size:1.6em;font-weight:700;border:none;border-radius:12px;cursor:pointer;background:linear-gradient(90deg,#e74c3c,#c0392b);color:#fff;transition:transform .2s,box-shadow .2s;letter-spacing:1px}
+#start-btn:hover{transform:scale(1.05);box-shadow:0 8px 30px rgba(231,76,60,.4)}
+#start-btn:active{transform:scale(.98)}
+
+/* GAME SECTION */
+#game-section{flex:0 0 60%;position:relative;overflow:hidden}
+#gameCanvas{width:100%;height:100%;display:block}
+
+/* GAME HUD */
+#game-hud{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+#game-hud .team-name{position:absolute;bottom:20px;font-size:1.8em;font-weight:800;text-shadow:0 2px 10px rgba(0,0,0,.6);letter-spacing:1px}
+#game-hud .team-name.red{left:30px;color:#e74c3c}
+#game-hud .team-name.blue{right:30px;color:#3498db}
+#timer-display{position:absolute;top:15px;left:50%;transform:translateX(-50%);font-size:2.2em;font-weight:700;background:rgba(0,0,0,.5);padding:5px 25px;border-radius:10px;border:2px solid rgba(255,255,255,.2)}
+#score-bar-wrap{position:absolute;bottom:70px;left:15%;right:15%;height:8px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden}
+#score-bar-fill{height:100%;width:50%;background:linear-gradient(90deg,#e74c3c 0%,#fff 50%,#3498db 100%);border-radius:4px;transition:width .05s linear}
+#score-bar-marker{position:absolute;top:-6px;width:4px;height:20px;background:#fff;border-radius:2px;transition:left .05s linear;box-shadow:0 0 8px rgba(255,255,255,.5)}
+
+/* SKILL INDICATORS */
+.skill-indicator{position:absolute;top:60px;padding:6px 14px;border-radius:8px;font-size:.85em;font-weight:600;display:none}
+.skill-indicator.active{display:block}
+.skill-indicator.red{left:20px;background:rgba(231,76,60,.8);color:#fff}
+.skill-indicator.blue{right:20px;background:rgba(52,152,219,.8);color:#fff}
+.skill-indicator .skill-bar{height:4px;background:rgba(255,255,255,.3);border-radius:2px;margin-top:4px;overflow:hidden}
+.skill-indicator .skill-bar-fill{height:100%;background:#fff;border-radius:2px;transition:width .1s linear}
+
+/* WARNING FLASH */
+.warning-flash{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity .3s}
+.warning-flash.active{opacity:.3}
+.warning-flash.red{background:radial-gradient(ellipse at left,rgba(231,76,60,.6),transparent 70%)}
+.warning-flash.blue{background:radial-gradient(ellipse at right,rgba(52,152,219,.6),transparent 70%)}
+.warning-flash.both{opacity:.4;background:radial-gradient(ellipse at center,rgba(255,255,255,.3),transparent 70%)}
+
+/* CAMERA SECTION */
+#camera-section{flex:0 0 40%;display:flex;position:relative}
+.camera-panel{flex:1;position:relative;overflow:hidden;background:#111}
+.camera-panel video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.camera-panel .cam-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.camera-panel .panel-label{position:absolute;top:8px;left:10px;font-size:1em;font-weight:700;text-shadow:0 1px 6px rgba(0,0,0,.8);z-index:2;padding:2px 10px;border-radius:4px}
+.camera-panel .panel-label.red{color:#e74c3c;background:rgba(0,0,0,.4)}
+.camera-panel .panel-label.blue{color:#3498db;background:rgba(0,0,0,.4)}
+.camera-panel .team-divider{position:absolute;top:0;left:50%;width:2px;height:100%;border-left:2px dashed rgba(255,255,255,.3);z-index:2;pointer-events:none}
+#cam-divider-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:rgba(255,255,255,.15);font-size:3em;font-weight:700;pointer-events:none;z-index:2;letter-spacing:8px;writing-mode:vertical-lr}
+.player-info{position:absolute;bottom:4px;left:4px;right:4px;display:flex;flex-wrap:wrap;gap:2px;z-index:3;pointer-events:none}
+.player-tag{background:rgba(0,0,0,.6);border-radius:4px;padding:2px 6px;font-size:.7em;display:flex;flex-direction:column;min-width:70px;border-left:3px solid}
+.player-tag.red{border-color:#e74c3c}
+.player-tag.blue{border-color:#3498db}
+.player-tag .pname{font-weight:600;font-size:.85em;white-space:nowrap}
+.player-tag .pstats{display:flex;gap:6px;font-size:.7em;color:#aaa}
+.player-tag .pbar{height:3px;border-radius:2px;margin-top:1px}
+.player-tag .stamina-bar{background:rgba(46,204,113,.6);width:100%}
+.player-tag .rage-bar{background:rgba(231,76,60,.6);width:0%}
+.player-tag .combo-text{color:#f1c40f;font-weight:700;font-size:.75em}
+
+/* COUNTDOWN OVERLAY */
+#countdown-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);pointer-events:none}
+#countdown-overlay.active{display:flex}
+#countdown-text{font-size:8em;font-weight:900;text-shadow:0 0 40px rgba(255,255,255,.5);animation:countPulse .5s ease-out}
+@keyframes countPulse{0%{transform:scale(1.5);opacity:0}50%{opacity:1}100%{transform:scale(1);opacity:1}}
+
+/* POST-GAME OVERLAY */
+#postgame-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:80;display:none;background:rgba(0,0,0,.8);overflow-y:auto;padding:20px}
+#postgame-overlay.active{display:flex;flex-direction:column;align-items:center}
+#postgame-overlay h2{font-size:2.5em;margin-bottom:10px}
+#postgame-overlay .winner-text{font-size:1.8em;margin-bottom:20px;padding:10px 30px;border-radius:10px;font-weight:700}
+#postgame-overlay .winner-text.red{background:rgba(231,76,60,.3);color:#e74c3c}
+#postgame-overlay .winner-text.blue{background:rgba(52,152,219,.3);color:#3498db}
+.mvp-section{display:flex;gap:30px;margin-bottom:20px}
+.mvp-card{padding:15px 25px;border-radius:10px;text-align:center;min-width:180px}
+.mvp-card.red{background:rgba(231,76,60,.2);border:2px solid #e74c3c}
+.mvp-card.blue{background:rgba(52,152,219,.2);border:2px solid #3498db}
+.mvp-card .mvp-label{font-size:.85em;color:#aaa}
+.mvp-card .mvp-name{font-size:1.5em;font-weight:700;margin:5px 0}
+.mvp-card .mvp-stat{font-size:.9em;color:#ccc}
+.leaderboard-table{width:100%;max-width:800px;border-collapse:collapse;margin-top:10px}
+.leaderboard-table th,.leaderboard-table td{padding:8px 12px;text-align:center;border-bottom:1px solid rgba(255,255,255,.1)}
+.leaderboard-table th{color:#aaa;font-size:.85em;font-weight:600}
+.leaderboard-table td{font-size:.9em}
+.leaderboard-table tr:hover td{background:rgba(255,255,255,.05)}
+#play-again-btn{padding:14px 40px;font-size:1.2em;font-weight:700;border:none;border-radius:10px;cursor:pointer;background:linear-gradient(90deg,#e74c3c,#3498db);color:#fff;margin-top:20px;transition:transform .2s}
+#play-again-btn:hover{transform:scale(1.05)}
+
+/* STATUS MESSAGE */
+#status-msg{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;padding:4px 16px;border-radius:6px;font-size:.85em;z-index:5;white-space:nowrap;display:none}
+
+/* MISC */
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen">
+    <h1>Tug of Clap</h1>
+    <div class="subtitle">Clap to pull! A real-time party game powered by your webcam</div>
+    <div class="setup-row">
+      <div class="setup-team red">
+        <div class="team-label red">Team Red</div>
+        <label for="red-count">Players</label>
+        <input type="number" id="red-count" min="1" max="16" value="8">
+      </div>
+      <div class="setup-team blue">
+        <div class="team-label blue">Team Blue</div>
+        <label for="blue-count">Players</label>
+        <input type="number" id="blue-count" min="1" max="16" value="8">
+      </div>
+    </div>
+    <div class="camera-mode">
+      <label>Camera mode:</label>
+      <button id="cam-toggle">Single Camera</button>
+    </div>
+    <button id="start-btn">START GAME</button>
+    <div style="margin-top:15px;font-size:.8em;color:#666">Make sure camera & microphone are connected</div>
+  </div>
+
+  <!-- GAME SECTION -->
+  <div id="game-section">
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-hud">
+      <div class="team-name red">RED</div>
+      <div class="team-name blue">BLUE</div>
+      <div id="timer-display">60</div>
+      <div id="score-bar-wrap">
+        <div id="score-bar-fill" style="width:50%"></div>
+        <div id="score-bar-marker" style="left:50%"></div>
+      </div>
+      <div class="skill-indicator red" id="skill-red">
+        <span>MIGHTY PULL</span>
+        <div class="skill-bar"><div class="skill-bar-fill" id="skill-red-fill" style="width:100%"></div></div>
+      </div>
+      <div class="skill-indicator blue" id="skill-blue">
+        <span>GRIP GROUND</span>
+        <div class="skill-bar"><div class="skill-bar-fill" id="skill-blue-fill" style="width:100%"></div></div>
+      </div>
+      <div class="warning-flash red" id="warn-red"></div>
+      <div class="warning-flash blue" id="warn-blue"></div>
+      <div class="warning-flash both" id="warn-both"></div>
+    </div>
+    <div id="countdown-overlay"><div id="countdown-text"></div></div>
+    <div id="status-msg"></div>
+  </div>
+
+  <!-- CAMERA SECTION -->
+  <div id="camera-section">
+    <div class="camera-panel" id="panel-red">
+      <video id="cam-video-red" autoplay muted playsinline></video>
+      <canvas class="cam-overlay" id="cam-overlay-red"></canvas>
+      <div class="panel-label red">TEAM RED</div>
+      <div class="player-info" id="player-info-red"></div>
+    </div>
+    <div class="camera-panel" id="panel-blue">
+      <video id="cam-video-blue" autoplay muted playsinline></video>
+      <canvas class="cam-overlay" id="cam-overlay-blue"></canvas>
+      <div class="panel-label blue">TEAM BLUE</div>
+      <div class="team-divider" id="team-divider"></div>
+      <div id="cam-divider-text">|</div>
+      <div class="player-info" id="player-info-blue"></div>
+    </div>
+  </div>
+
+  <!-- POST-GAME OVERLAY -->
+  <div id="postgame-overlay">
+    <h2>GAME OVER</h2>
+    <div class="winner-text" id="winner-text"></div>
+    <div class="mvp-section" id="mvp-section"></div>
+    <table class="leaderboard-table" id="leaderboard">
+      <thead><tr><th>Player</th><th>Team</th><th>Claps</th><th>Best Combo</th><th>Force</th><th>Active (s)</th></tr></thead>
+      <tbody id="leaderboard-body"></tbody>
+    </table>
+    <button id="play-again-btn">PLAY AGAIN</button>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// TUG OF CLAP — Complete Game Implementation
+// ============================================================
+
+(function() {
+  'use strict';
+
+  // ======================== CONFIG ========================
+  const CFG = {
+    GAME_DURATION: 60,
+    COUNTDOWN_SECS: 3,
+    MAX_PULL_DIST: 100,
+    ROPE_FRICTION: 0.96,
+    ROPE_SPRING: 0.003,
+    CLAP_FORCE: 1.0,
+    CLAP_WINDOW_MS: 200,
+    CLAP_SPEED_THRESH: 0.15,
+    CLAP_DIST_THRESH: 0.12,
+    AUDIO_THRESHOLD: 0.3,
+    STAMINA_MAX: 100,
+    STAMINA_CLAP_COST: 5,
+    STAMINA_LOW_THRESH: 20,
+    STAMINA_REGEN: 1,
+    RAGE_MAX: 100,
+    RAGE_PER_CLAP: 1,
+    COMBO_RESET_MS: 1000,
+    FACE_DETECT_INTERVAL: 120,
+    HAND_DETECT_INTERVAL: 200,
+    MAX_HANDS: 16
+  };
+
+  // ====================== STATE ==========================
+  const state = {
+    phase: 'setup', // setup | countdown | playing | ended
+    redTeam: [],
+    blueTeam: [],
+    allPlayers: [],
+    ropePos: 0,
+    ropeVel: 0,
+    ropeAccel: 0,
+    timer: CFG.GAME_DURATION,
+    lastTimestamp: 0,
+    redSkillActive: false,
+    blueSkillActive: false,
+    redSkillTimer: 0,
+    blueSkillTimer: 0,
+    redSkillReady: false,
+    blueSkillReady: false,
+    redSkillReadyTime: 0,
+    blueSkillReadyTime: 0,
+    redRageTotal: 0,
+    blueRageTotal: 0,
+    maxPlayers: 0,
+    dualCam: false,
+    audioCtx: null,
+    audioAnalyser: null,
+    audioData: null,
+    audioRMS: 0,
+    mediaPipeLoaded: false,
+    faceDetector: null,
+    handLandmarker: null,
+    poseLandmarker: null,
+    vision: null,
+    clapEvents: [], // {time, playerId}
+    lastClapTime: 0,
+    nextFaceDetect: 0,
+    nextHandDetect: 0,
+    faceDetections: [],
+    handResults: null,
+    lastHandDistances: {},
+    frameCount: 0,
+    playersById: {},
+    faceMatches: {},
+    nextPlayerId: 1,
+    comboLastClap: {},
+    comboCount: {},
+    stamina: {},
+    rage: {},
+    totalForce: {},
+    totalClaps: {},
+    bestCombo: {},
+    activeTime: {},
+    lastActiveUpdate: {},
+    shockwaves: [],
+    particles: [],
+    dustParticles: [],
+    victoryShown: false
+  };
+
+  // ================== DOM REFS =========================
+  const $ = id => document.getElementById(id);
+  const gameCanvas = $('gameCanvas');
+  const gCtx = gameCanvas.getContext('2d');
+  const overlayRed = $('cam-overlay-red');
+  const oCtxR = overlayRed.getContext('2d');
+  const overlayBlue = $('cam-overlay-blue');
+  const oCtxB = overlayBlue.getContext('2d');
+  const videoRed = $('cam-video-red');
+  const videoBlue = $('cam-video-blue');
+  const setupScreen = $('setup-screen');
+  const countdownOverlay = $('countdown-overlay');
+  const countdownText = $('countdown-text');
+  const timerDisplay = $('timer-display');
+  const scoreFill = $('score-bar-fill');
+  const scoreMarker = $('score-bar-marker');
+  const postgameOverlay = $('postgame-overlay');
+  const winnerText = $('winner-text');
+  const mvpSection = $('mvp-section');
+  const leaderboardBody = $('leaderboard-body');
+  const startBtn = $('start-btn');
+  const camToggle = $('cam-toggle');
+  const redCount = $('red-count');
+  const blueCount = $('blue-count');
+  const skillRed = $('skill-red');
+  const skillBlue = $('skill-blue');
+  const skillRedFill = $('skill-red-fill');
+  const skillBlueFill = $('skill-blue-fill');
+  const warnRed = $('warn-red');
+  const warnBlue = $('warn-blue');
+  const warnBoth = $('warn-both');
+  const playerInfoRed = $('player-info-red');
+  const playerInfoBlue = $('player-info-blue');
+  const teamDivider = $('team-divider');
+  const camDividerText = $('cam-divider-text');
+  const statusMsg = $('status-msg');
+
+  // ================== AUDIO MANAGER ====================
+  const AudioManager = {
+    initialized: false,
+    stream: null,
+    async init() {
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true, echoCancellation: true });
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = state.audioCtx.createMediaStreamSource(this.stream);
+        state.audioAnalyser = state.audioCtx.createAnalyser();
+        state.audioAnalyser.fftSize = 256;
+        source.connect(state.audioAnalyser);
+        state.audioData = new Uint8Array(state.audioAnalyser.frequencyBinCount);
+        this.initialized = true;
+        return true;
+      } catch(e) {
+        console.warn('Audio init failed:', e);
+        return false;
+      }
+    },
+    getRMS() {
+      if (!state.audioAnalyser) return 0;
+      state.audioAnalyser.getByteTimeDomainData(state.audioData);
+      let sum = 0;
+      for (let i = 0; i < state.audioData.length; i++) {
+        const val = (state.audioData[i] - 128) / 128;
+        sum += val * val;
+      }
+      state.audioRMS = Math.sqrt(sum / state.audioData.length);
+      return state.audioRMS;
+    },
+    cleanup() {
+      if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+      if (state.audioCtx) state.audioCtx.close();
+      this.initialized = false;
+    }
+  };
+
+  // ================== CAMERA MANAGER ====================
+  const CameraManager = {
+    streams: [],
+    async init(dual) {
+      this.cleanup();
+      if (dual) {
+        try {
+          const s1 = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+          this.streams.push(s1);
+          videoRed.srcObject = s1;
+          const s2 = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+          this.streams.push(s2);
+          videoBlue.srcObject = s2;
+          state.dualCam = true;
+          teamDivider.classList.add('hidden');
+          camDividerText.classList.add('hidden');
+        } catch(e) {
+          console.warn('Dual camera failed, falling back:', e);
+          await this.init(false);
+          return;
+        }
+      } else {
+        const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+        this.streams.push(s);
+        videoRed.srcObject = s;
+        videoBlue.srcObject = s;
+        state.dualCam = false;
+        teamDivider.classList.remove('hidden');
+        camDividerText.classList.remove('hidden');
+      }
+      await Promise.all([videoRed.play(), videoBlue.play()]);
+      this.resizeCanvases();
+    },
+    resizeCanvases() {
+      const vw = videoRed.videoWidth || 640;
+      const vh = videoRed.videoHeight || 480;
+      const rw = overlayRed.clientWidth || overlayRed.parentElement.clientWidth || vw;
+      const rh = overlayRed.clientHeight || overlayRed.parentElement.clientHeight || vh;
+      overlayRed.width = rw;
+      overlayRed.height = rh;
+      overlayBlue.width = rw;
+      overlayBlue.height = rh;
+    },
+    cleanup() {
+      this.streams.forEach(s => s.getTracks().forEach(t => t.stop()));
+      this.streams = [];
+    }
+  };
+
+  // ================== MEDIAPIPE MANAGER =================
+  const MediaPipeManager = {
+    async load() {
+      try {
+        const { FaceDetector, HandLandmarker, PoseLandmarker, FilesetResolver } = await import(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0'
+        );
+        state.vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
+        );
+        state.faceDetector = await FaceDetector.createFromOptions(state.vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+          },
+          runningMode: 'VIDEO',
+          minDetectionConfidence: 0.7,
+          minSuppressionThreshold: 0.5
+        });
+        state.handLandmarker = await HandLandmarker.createFromOptions(state.vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
+          },
+          runningMode: 'VIDEO',
+          numHands: CFG.MAX_HANDS,
+          minHandDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        state.poseLandmarker = await PoseLandmarker.createFromOptions(state.vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker/float16/1/pose_landmarker.task'
+          },
+          runningMode: 'VIDEO',
+          minPoseDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        state.mediaPipeLoaded = true;
+        return true;
+      } catch(e) {
+        console.error('MediaPipe load error:', e);
+        return false;
+      }
+    },
+    async detectFaces(video) {
+      if (!state.faceDetector || !video.videoWidth) return [];
+      try {
+        const result = await state.faceDetector.detectForVideo(video, performance.now());
+        return result.detections || [];
+      } catch(e) { return []; }
+    },
+    async detectHands(video) {
+      if (!state.handLandmarker || !video.videoWidth) return null;
+      try {
+        return await state.handLandmarker.detectForVideo(video, performance.now());
+      } catch(e) { return null; }
+    },
+    async detectPose(video) {
+      if (!state.poseLandmarker || !video.videoWidth) return null;
+      try {
+        return await state.poseLandmarker.detectForVideo(video, performance.now());
+      } catch(e) { return null; }
+    }
+  };
+
+  // ================== PLAYER / TEAM MANAGEMENT ==========
+  const GameState = {
+    initPlayers(redN, blueN) {
+      state.redTeam = [];
+      state.blueTeam = [];
+      state.allPlayers = [];
+      state.playersById = {};
+      state.nextPlayerId = 1;
+      state.comboLastClap = {};
+      state.comboCount = {};
+      state.stamina = {};
+      state.rage = {};
+      state.totalForce = {};
+      state.totalClaps = {};
+      state.bestCombo = {};
+      state.activeTime = {};
+      state.lastActiveUpdate = {};
+      state.clapEvents = [];
+      state.faceMatches = {};
+      state.lastHandDistances = {};
+      state.redSkillReady = false;
+      state.blueSkillReady = false;
+      state.redSkillReadyTime = 0;
+      state.blueSkillReadyTime = 0;
+      state.redSkillActive = false;
+      state.blueSkillActive = false;
+      state.redRageTotal = 0;
+      state.blueRageTotal = 0;
+      state.victoryShown = false;
+
+      for (let i = 0; i < redN; i++) this.addPlayer('red', i + 1);
+      for (let i = 0; i < blueN; i++) this.addPlayer('blue', i + 1);
+      state.maxPlayers = redN + blueN;
+    },
+    addPlayer(team, index) {
+      const pid = state.nextPlayerId++;
+      const p = {
+        id: pid,
+        name: team === 'red' ? `Player R${index}` : `Player B${index}`,
+        team: team,
+        faceIndex: -1,
+        active: false
+      };
+      state.playersById[pid] = p;
+      state.allPlayers.push(p);
+      if (team === 'red') state.redTeam.push(p);
+      else state.blueTeam.push(p);
+      state.stamina[pid] = CFG.STAMINA_MAX;
+      state.rage[pid] = 0;
+      state.totalForce[pid] = 0;
+      state.totalClaps[pid] = 0;
+      state.bestCombo[pid] = 0;
+      state.comboCount[pid] = 0;
+      state.comboLastClap[pid] = 0;
+      state.activeTime[pid] = 0;
+      state.lastActiveUpdate[pid] = 0;
+    },
+    assignFacesToPlayers(faces) {
+      const redCount = state.redTeam.length;
+      const blueCount = state.blueTeam.length;
+      const midX = 0.5;
+      const vw = videoRed.videoWidth || 640;
+      const redFaces = [];
+      const blueFaces = [];
+      for (const f of faces) {
+        const bx = f.boundingBox;
+        if (!bx) continue;
+        const cx = (bx.originX + bx.width / 2) / vw;
+        (cx < midX ? redFaces : blueFaces).push({ face: f, cx });
+      }
+      redFaces.sort((a, b) => a.cx - b.cx);
+      blueFaces.sort((a, b) => b.cx - a.cx);
+
+      const assign = (teamFaces, teamPlayers, offset) => {
+        const n = Math.min(teamFaces.length, teamPlayers.length);
+        for (let i = 0; i < teamPlayers.length; i++) {
+          if (i < n) {
+            teamPlayers[i].faceIndex = offset + i;
+            teamPlayers[i].active = true;
+          } else {
+            teamPlayers[i].faceIndex = -1;
+            teamPlayers[i].active = false;
+          }
+        }
+      };
+      assign(redFaces, state.redTeam, 0);
+      assign(blueFaces, state.blueTeam, redFaces.length);
+    },
+    applyClap(playerId) {
+      const p = state.playersById[playerId];
+      if (!p || !p.active) return 0;
+      const pid = playerId;
+      const now = Date.now();
+
+      // Stamina
+      state.stamina[pid] = Math.max(0, state.stamina[pid] - CFG.STAMINA_CLAP_COST);
+      let forceMul = 1;
+      if (state.stamina[pid] < CFG.STAMINA_LOW_THRESH) forceMul = 0.5;
+
+      // Combo
+      if (now - (state.comboLastClap[pid] || 0) < CFG.COMBO_RESET_MS) {
+        state.comboCount[pid] = (state.comboCount[pid] || 0) + 1;
+      } else {
+        state.comboCount[pid] = 1;
+      }
+      state.comboLastClap[pid] = now;
+      const combo = state.comboCount[pid];
+      if (combo >= 10) forceMul *= 5;
+      else if (combo >= 5) forceMul *= 3;
+      else if (combo >= 3) forceMul *= 2;
+      if (combo > state.bestCombo[pid]) state.bestCombo[pid] = combo;
+
+      // Rage
+      state.rage[pid] = Math.min(CFG.RAGE_MAX, state.rage[pid] + CFG.RAGE_PER_CLAP);
+
+      // Team skill check
+      if (p.team === 'red' && state.rage[pid] >= CFG.RAGE_MAX) state.redSkillReady = true;
+      if (p.team === 'blue' && state.rage[pid] >= CFG.RAGE_MAX) state.blueSkillReady = true;
+
+      // Force
+      let force = CFG.CLAP_FORCE * forceMul;
+      if (state.redSkillActive && p.team === 'red') force *= 2;
+      state.totalForce[pid] += force;
+      state.totalClaps[pid]++;
+
+      // Active time
+      if (!state.lastActiveUpdate[pid]) state.lastActiveUpdate[pid] = now;
+      state.activeTime[pid] += (now - state.lastActiveUpdate[pid]) / 1000;
+      state.lastActiveUpdate[pid] = now;
+
+      const dir = p.team === 'red' ? -1 : 1;
+      state.clapEvents.push({ time: performance.now(), force: force * dir, playerId: pid });
+      return force * dir;
+    },
+    updateStaminaRage() {
+      const now = Date.now();
+      for (const pid in state.playersById) {
+        const p = state.playersById[pid];
+        if (!p) continue;
+        const elapsed = (now - (state.comboLastClap[pid] || 0)) / 1000;
+        if (elapsed > 1.5 && state.stamina[pid] < CFG.STAMINA_MAX) {
+          state.stamina[pid] = Math.min(CFG.STAMINA_MAX, state.stamina[pid] + CFG.STAMINA_REGEN * 0.05);
+        }
+        if (elapsed > 1.5) state.comboCount[pid] = 0;
+        if (elapsed > 0.05) state.lastActiveUpdate[pid] = now;
+      }
+    },
+    getActivePlayerList(team) {
+      const arr = team === 'red' ? state.redTeam : state.blueTeam;
+      return arr.filter(p => p.active);
+    }
+  };
+
+  // ================== CLAP DETECTOR =====================
+  const ClapDetector = {
+    processHands(results) {
+      if (!results || !results.landmarks) return;
+      const now = Date.now();
+      for (let hi = 0; hi < results.landmarks.length; hi++) {
+        const landmarks = results.landmarks[hi];
+        if (landmarks.length < 21) continue;
+
+        // Try to find which player this hand belongs to
+        // Use face proximity: get hand center and match to nearest active player
+        const wrist0 = landmarks[0];
+        const wrist1 = landmarks[9];
+        if (!wrist0 || !wrist1) continue;
+        const hx = (wrist0.x + wrist1.x) / 2;
+        const hy = (wrist0.y + wrist1.y) / 2;
+
+        // Match to detected faces / players
+        const assigned = this.matchHandToPlayer(hx, hy, results.handedness?.[hi]?.[0]?.categoryCode);
+        if (assigned < 0) continue;
+        const pid = assigned;
+
+        // Compute distance between hands (wrist landmarks) for this player
+        // We use hand landmarks: for two hands of same person, check distance
+        // Since we only track individual hands, use the hand's own pinch distance
+        // Actually, for a clap we need two hands. Track wrist distance between
+        // consecutive detections for same player's hand pairs
+
+        const key = String(pid);
+        if (!state.lastHandDistances[key]) state.lastHandDistances[key] = { dist: 1, time: now };
+        const prev = state.lastHandDistances[key];
+
+        // Simplified clap detection: check if fingertips meet palm center
+        // Use thumb tip (4) and index tip (8) distance
+        const tip4 = landmarks[4];
+        const tip8 = landmarks[8];
+        const d = Math.hypot(tip4.x - tip8.x, tip4.y - tip8.y, tip4.z - tip8.z);
+        const speed = (prev.dist - d) / Math.max(1, now - prev.time) * 50;
+
+        prev.dist = d;
+        prev.time = now;
+
+        // Check audio
+        const audioOk = state.audioRMS > CFG.AUDIO_THRESHOLD;
+
+        if (d < CFG.CLAP_DIST_THRESH && speed > CFG.CLAP_SPEED_THRESH && audioOk) {
+          const force = GameState.applyClap(pid);
+          if (force !== 0) {
+            state.shockwaves.push({ x: hx, y: hy, r: 0, maxR: 0.15, alpha: 1, team: state.playersById[pid]?.team });
+            playClapSound();
+          }
+        }
+      }
+    },
+
+    matchHandToPlayer(hx, hy, handedness) {
+      // Match hand to nearest active player based on face position
+      // Simple: assign based on left/right half of camera
+      const midX = 0.5;
+      const team = hx < midX ? 'red' : 'blue';
+      const players = team === 'red' ? state.redTeam : state.blueTeam;
+      const active = players.filter(p => p.active);
+      if (active.length === 0) return -1;
+      // Pick closest based on face index order
+      return active[Math.floor(Math.random() * active.length)]?.id || -1;
+    }
+  };
+
+  // ================== PHYSICS ===========================
+  const Physics = {
+    update(dt) {
+      // Apply pending clap forces
+      const now = performance.now();
+      const windowStart = now - CFG.CLAP_WINDOW_MS;
+      let totalForce = 0;
+      const toRemove = [];
+      for (let i = 0; i < state.clapEvents.length; i++) {
+        const ev = state.clapEvents[i];
+        if (ev.time < windowStart) { toRemove.push(i); continue; }
+        totalForce += ev.force;
+      }
+      for (let i = toRemove.length - 1; i >= 0; i--) {
+        state.clapEvents.splice(toRemove[i], 1);
+      }
+
+      // If blue skill active, reduce opponent force
+      if (state.blueSkillActive && totalForce < 0) {
+        totalForce *= 0.33;
+      }
+
+      // Apply impulse
+      state.ropeVel += totalForce * 2.0 * dt;
+
+      // Spring force (pull toward center)
+      const spring = -CFG.ROPE_SPRING * state.ropePos;
+
+      // Friction
+      state.ropeVel *= Math.pow(CFG.ROPE_FRICTION, dt * 60);
+      state.ropeVel += spring * dt * 60;
+
+      // Random micro-vibrations when force is high
+      if (Math.abs(totalForce) > 0.1) {
+        state.ropeVel += (Math.random() - 0.5) * 0.3 * Math.abs(totalForce);
+      }
+
+      state.ropePos += state.ropeVel * dt * 60;
+
+      // Clamp
+      if (Math.abs(state.ropePos) > CFG.MAX_PULL_DIST) {
+        state.ropePos = Math.sign(state.ropePos) * CFG.MAX_PULL_DIST;
+        state.ropeVel *= -0.2;
+      }
+    },
+
+    isWin() { return Math.abs(state.ropePos) >= CFG.MAX_PULL_DIST; },
+
+    getFlagPos() {
+      return (state.ropePos / CFG.MAX_PULL_DIST) * 50 + 50;
+    }
+  };
+
+  // ================== RENDERER ==========================
+  const Renderer = {
+    gameW: 0, gameH: 0,
+
+    resize() {
+      const rect = gameCanvas.parentElement.getBoundingClientRect();
+      gameCanvas.width = rect.width;
+      gameCanvas.height = rect.height;
+      this.gameW = rect.width;
+      this.gameH = rect.height;
+    },
+
+    drawGame() {
+      const W = this.gameW;
+      const H = this.gameH;
+      const ctx = gCtx;
+      const flagPct = Physics.getFlagPos();
+
+      // Sky
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+      skyGrad.addColorStop(0, '#87CEEB');
+      skyGrad.addColorStop(1, '#E0F0FF');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, W, H * 0.7);
+
+      // Clouds
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      for (let i = 0; i < 5; i++) {
+        const cx = (i * 137 + 50) % W;
+        const cy = (i * 89 + 30) % (H * 0.35);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 30 + i * 8, 0, Math.PI * 2);
+        ctx.arc(cx + 30, cy - 10, 25 + i * 5, 0, Math.PI * 2);
+        ctx.arc(cx + 60, cy, 28 + i * 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Ground
+      const grassY = H * 0.65;
+      const grassGrad = ctx.createLinearGradient(0, grassY, 0, H);
+      grassGrad.addColorStop(0, '#4CAF50');
+      grassGrad.addColorStop(0.5, '#388E3C');
+      grassGrad.addColorStop(1, '#2E7D32');
+      ctx.fillStyle = grassGrad;
+      ctx.fillRect(0, grassY, W, H - grassY);
+
+      // Grass blades
+      ctx.strokeStyle = 'rgba(76,175,80,0.4)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 60; i++) {
+        const gx = (i * 47 + 13) % W;
+        const gh = 8 + (i * 7) % 12;
+        ctx.beginPath();
+        ctx.moveTo(gx, grassY);
+        ctx.quadraticCurveTo(gx + 3, grassY - gh, gx + 6, grassY);
+        ctx.stroke();
+      }
+
+      // Rope
+      const ropeY = grassY - 20;
+      const ropeOffset = (state.ropePos / CFG.MAX_PULL_DIST) * W * 0.35;
+      const midX = W / 2 + ropeOffset;
+
+      // Rope shake
+      const shakeIntensity = Math.min(1, Math.abs(state.ropeVel) * 0.5);
+      const shakeX = (Math.random() - 0.5) * shakeIntensity * 8;
+      const shakeY = (Math.random() - 0.5) * shakeIntensity * 4;
+
+      // Draw rope segments
+      const segCount = 60;
+      ctx.lineWidth = 6 + shakeIntensity * 2;
+      ctx.strokeStyle = '#8B4513';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      const segLen = W * 0.8 / segCount;
+      const startX = W * 0.1;
+      for (let i = 0; i <= segCount; i++) {
+        const t = i / segCount;
+        const sx = startX + i * segLen;
+        const sy = ropeY + Math.sin(i * 0.3 + state.ropePos * 0.05) * 3 * shakeIntensity;
+        // Curved rope toward middle
+        const curve = -Math.sin(t * Math.PI) * ropeOffset * 0.3;
+        const fx = sx + curve + shakeX;
+        const fy = sy + Math.sin(performance.now() * 0.003 + i * 0.5) * shakeIntensity * 2 + shakeY;
+        if (i === 0) ctx.moveTo(fx, fy);
+        else ctx.lineTo(fx, fy);
+      }
+      ctx.stroke();
+
+      // Rope texture lines
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(139,90,43,0.3)';
+      for (let j = 0; j < 3; j++) {
+        ctx.beginPath();
+        for (let i = 0; i <= segCount; i++) {
+          const t = i / segCount;
+          const sx = startX + i * segLen;
+          const curve = -Math.sin(t * Math.PI) * ropeOffset * 0.3;
+          const fx = sx + curve + shakeX;
+          const fy = ropeY + Math.sin(i * 0.3 + state.ropePos * 0.05) * 3 * shakeIntensity + j * 2 + shakeY;
+          if (i === 0) ctx.moveTo(fx, fy);
+          else ctx.lineTo(fx, fy);
+        }
+        ctx.stroke();
+      }
+
+      // Flag
+      const flagX = midX;
+      const flagY = ropeY - 15;
+      ctx.fillStyle = state.ropePos < 0 ? '#e74c3c' : '#3498db';
+      ctx.beginPath();
+      ctx.moveTo(flagX, flagY);
+      ctx.lineTo(flagX + (state.ropePos < 0 ? -20 : 20), flagY - 10);
+      ctx.lineTo(flagX + (state.ropePos < 0 ? -20 : 20), flagY + 10);
+      ctx.closePath();
+      ctx.fill();
+      // Flag pole
+      ctx.fillStyle = '#666';
+      ctx.fillRect(flagX - 2, flagY - 5, 4, 25);
+
+      // Stick figure players
+      const drawPlayers = (team, side) => {
+        const players = team === 'red' ? state.redTeam : state.blueTeam;
+        const n = state.maxPlayers || 16;
+        const color = team === 'red' ? '#e74c3c' : '#3498db';
+        const baseX = side === 'left' ? W * 0.05 : W * 0.82;
+        const spacing = Math.min(30, (W * 0.15) / Math.max(1, n));
+        const leanAngle = (state.ropePos / CFG.MAX_PULL_DIST) * 0.3 * (side === 'left' ? 1 : -1);
+
+        for (let i = 0; i < Math.min(n, 12); i++) {
+          const px = baseX + i * spacing;
+          const py = grassY - 5;
+          const headR = 8;
+          // Body
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(leanAngle);
+          // Head
+          ctx.fillStyle = '#FFD93D';
+          ctx.beginPath();
+          ctx.arc(0, -headR - 12, headR, 0, Math.PI * 2);
+          ctx.fill();
+          // Body
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, -4);
+          ctx.lineTo(0, 16);
+          ctx.stroke();
+          // Arms (pulling)
+          ctx.beginPath();
+          ctx.moveTo(-8, 2);
+          ctx.lineTo(0, -2);
+          ctx.lineTo(8, 2);
+          ctx.stroke();
+          // Legs
+          ctx.beginPath();
+          ctx.moveTo(0, 16);
+          ctx.lineTo(-6, 28);
+          ctx.moveTo(0, 16);
+          ctx.lineTo(6, 28);
+          ctx.stroke();
+          // Team color dot on chest
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(0, 4, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      };
+      drawPlayers('red', 'left');
+      drawPlayers('blue', 'right');
+
+      // Shockwave rings
+      for (let i = state.shockwaves.length - 1; i >= 0; i--) {
+        const sw = state.shockwaves[i];
+        sw.r += 0.002;
+        sw.alpha -= 0.02;
+        if (sw.alpha <= 0 || sw.r > sw.maxR) { state.shockwaves.splice(i, 1); continue; }
+        const sx = W * sw.x;
+        const sy = grassY - 20 + (sw.y - 0.5) * 40;
+        ctx.strokeStyle = sw.team === 'red' ? `rgba(231,76,60,${sw.alpha})` : `rgba(52,152,219,${sw.alpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sw.r * W, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Dust particles
+      for (let i = state.dustParticles.length - 1; i >= 0; i--) {
+        const d = state.dustParticles[i];
+        d.x += d.vx;
+        d.y += d.vy;
+        d.vy += 0.02;
+        d.life -= 0.02;
+        if (d.life <= 0) { state.dustParticles.splice(i, 1); continue; }
+        ctx.fillStyle = `rgba(139,119,54,${d.life * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, 2 + d.life * 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Generate dust when rope moves fast
+      if (Math.abs(state.ropeVel) > 0.5) {
+        for (let i = 0; i < 2; i++) {
+          state.dustParticles.push({
+            x: midX + (Math.random() - 0.5) * 40,
+            y: grassY - 5,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -Math.random() * 1.5,
+            life: 1
+          });
+        }
+      }
+
+      // Center marker
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(W / 2, grassY - 40);
+      ctx.lineTo(W / 2, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Score bar
+      const barY = 30;
+      const barW = W * 0.7;
+      const barX = (W - barW) / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      roundRect(ctx, barX - 2, barY - 2, barW + 4, 16, 8);
+      ctx.fill();
+      // Red side
+      const fillW = (flagPct / 100) * barW;
+      ctx.fillStyle = '#e74c3c';
+      roundRect(ctx, barX, barY, fillW, 12, 6);
+      ctx.fill();
+      // Blue side
+      ctx.fillStyle = '#3498db';
+      roundRect(ctx, barX + fillW, barY, barW - fillW, 12, 6);
+      ctx.fill();
+      // Marker
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(barX + fillW, barY + 6, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Team names
+      ctx.font = 'bold 24px "Segoe UI"';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillText('RED', barX, barY - 8);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#3498db';
+      ctx.fillText('BLUE', barX + barW, barY - 8);
+    }
+  };
+
+  // ================== UI MANAGER ========================
+  const UIManager = {
+    showStatus(msg) { statusMsg.textContent = msg; statusMsg.style.display = 'block'; setTimeout(() => statusMsg.style.display = 'none', 3000); },
+    updateTimer(val) { timerDisplay.textContent = Math.ceil(val); },
+    updateScoreBar() {
+      const pct = Physics.getFlagPos();
+      scoreFill.style.width = pct + '%';
+      scoreMarker.style.left = pct + '%';
+    },
+    showCountdown(text, cb) {
+      countdownOverlay.classList.add('active');
+      countdownText.textContent = text;
+      countdownText.style.animation = 'none';
+      void countdownText.offsetWidth;
+      countdownText.style.animation = 'countPulse .5s ease-out';
+      if (cb) setTimeout(cb, 700);
+    },
+    hideCountdown() { countdownOverlay.classList.remove('active'); },
+    updateWarnings() {
+      const pct = Physics.getFlagPos();
+      const danger = 0.9;
+      if (pct < danger * 100 && pct > (1 - danger) * 100) {
+        warnRed.classList.remove('active');
+        warnBlue.classList.remove('active');
+        warnBoth.classList.remove('active');
+      } else if (pct >= danger * 100) {
+        warnRed.classList.add('active');
+        warnBlue.classList.remove('active');
+        warnBoth.classList.remove('active');
+      } else if (pct <= (1 - danger) * 100) {
+        warnRed.classList.remove('active');
+        warnBlue.classList.add('active');
+        warnBoth.classList.remove('active');
+      }
+    },
+    updateSkills() {
+      if (state.redSkillActive) {
+        skillRed.classList.add('active');
+        state.redSkillTimer -= 0.016;
+        skillRedFill.style.width = Math.max(0, state.redSkillTimer / 10 * 100) + '%';
+        if (state.redSkillTimer <= 0) { state.redSkillActive = false; skillRed.classList.remove('active'); }
+      } else if (state.redSkillReady) {
+        skillRed.classList.add('active');
+        skillRedFill.style.width = '100%';
+        skillRed.querySelector('span').textContent = 'READY! Raise hand!';
+      }
+      if (state.blueSkillActive) {
+        skillBlue.classList.add('active');
+        state.blueSkillTimer -= 0.016;
+        skillBlueFill.style.width = Math.max(0, state.blueSkillTimer / 10 * 100) + '%';
+        if (state.blueSkillTimer <= 0) { state.blueSkillActive = false; skillBlue.classList.remove('active'); }
+      } else if (state.blueSkillReady) {
+        skillBlue.classList.add('active');
+        skillBlueFill.style.width = '100%';
+        skillBlue.querySelector('span').textContent = 'READY! Raise hand!';
+      }
+    },
+    updatePlayerOverlays() {
+      const updatePanel = (team, container) => {
+        const players = team === 'red' ? state.redTeam : state.blueTeam;
+        const active = players.filter(p => p.active);
+        let html = '';
+        for (const p of active) {
+          const s = state.stamina[p.id];
+          const r = state.rage[p.id];
+          const c = state.comboCount[p.id] || 0;
+          const comboText = c >= 3 ? `<span class="combo-text">COMBO x${c}</span>` : '';
+          html += `<div class="player-tag ${team}">
+            <div class="pname">${p.name} ${comboText}</div>
+            <div class="pstats">HP ${Math.round(s)} RG ${Math.round(r)}</div>
+            <div class="pbar stamina-bar" style="width:${Math.round(s)}%"></div>
+            <div class="pbar rage-bar" style="width:${Math.round(r)}%"></div>
+          </div>`;
+        }
+        container.innerHTML = html;
+      };
+      updatePanel('red', playerInfoRed);
+      updatePanel('blue', playerInfoBlue);
+    },
+    showPostGame(winner) {
+      postgameOverlay.classList.add('active');
+      const wt = winner === 'red' ? '🏆 RED TEAM WINS!' : '🏆 BLUE TEAM WINS!';
+      winnerText.textContent = wt;
+      winnerText.className = 'winner-text ' + winner;
+
+      // MVP
+      const findMVP = (team) => {
+        const players = team === 'red' ? state.redTeam : state.blueTeam;
+        let best = null, bestForce = -1;
+        for (const p of players) {
+          if (state.totalForce[p.id] > bestForce) { bestForce = state.totalForce[p.id]; best = p; }
+        }
+        return best;
+      };
+      const mvpR = findMVP('red');
+      const mvpB = findMVP('blue');
+      mvpSection.innerHTML = `
+        <div class="mvp-card red">
+          <div class="mvp-label">RED MVP</div>
+          <div class="mvp-name">${mvpR ? mvpR.name : 'N/A'}</div>
+          <div class="mvp-stat">${mvpR ? Math.round(state.totalForce[mvpR.id]) + ' force' : ''}</div>
+        </div>
+        <div class="mvp-card blue">
+          <div class="mvp-label">BLUE MVP</div>
+          <div class="mvp-name">${mvpB ? mvpB.name : 'N/A'}</div>
+          <div class="mvp-stat">${mvpB ? Math.round(state.totalForce[mvpB.id]) + ' force' : ''}</div>
+        </div>
+      `;
+
+      // Leaderboard
+      const all = [...state.redTeam, ...state.blueTeam].sort((a, b) => state.totalForce[b.id] - state.totalForce[a.id]);
+      let rows = '';
+      for (const p of all) {
+        rows += `<tr>
+          <td>${p.name}</td>
+          <td style="color:${p.team === 'red' ? '#e74c3c' : '#3498db'}">${p.team.toUpperCase()}</td>
+          <td>${state.totalClaps[p.id] || 0}</td>
+          <td>${state.bestCombo[p.id] || 0}</td>
+          <td>${Math.round(state.totalForce[p.id] || 0)}</td>
+          <td>${Math.round(state.activeTime[p.id] || 0)}</td>
+        </tr>`;
+      }
+      leaderboardBody.innerHTML = rows;
+    },
+    showSetup() { setupScreen.classList.remove('hidden'); },
+    hideSetup() { setupScreen.classList.add('hidden'); }
+  };
+
+  // ================== EFFECTS ===========================
+  // Audio effects
+  let audioEffectsInitialized = false;
+  let audioEffectCtx = null;
+  let masterGain = null;
+
+  function initAudioEffects() {
+    if (audioEffectsInitialized) return;
+    try {
+      audioEffectCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioEffectCtx.createGain();
+      masterGain.gain.value = 0.3;
+      masterGain.connect(audioEffectCtx.destination);
+      audioEffectsInitialized = true;
+    } catch(e) { console.warn('Audio effects not available'); }
+  }
+
+  function playClapSound() {
+    if (!audioEffectCtx) return;
+    const osc = audioEffectCtx.createOscillator();
+    const gain = audioEffectCtx.createGain();
+    const noise = audioEffectCtx.createBufferSource();
+    const bufSize = audioEffectCtx.sampleRate * 0.05;
+    const buf = audioEffectCtx.createBuffer(1, bufSize, audioEffectCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.1));
+    noise.buffer = buf;
+    osc.type = 'square';
+    osc.frequency.value = 800;
+    osc.frequency.exponentialRampToValueAtTime(200, audioEffectCtx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.3, audioEffectCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioEffectCtx.currentTime + 0.08);
+    const mix = audioEffectCtx.createGain();
+    mix.gain.value = 0.5;
+    osc.connect(mix);
+    noise.connect(mix);
+    mix.connect(gain);
+    gain.connect(audioEffectCtx.destination);
+    osc.start(); osc.stop(audioEffectCtx.currentTime + 0.08);
+    noise.start(); noise.stop(audioEffectCtx.currentTime + 0.08);
+  }
+
+  function playCheer() {
+    if (!audioEffectCtx) return;
+    const osc = audioEffectCtx.createOscillator();
+    const gain = audioEffectCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 200 + Math.random() * 400;
+    gain.gain.setValueAtTime(0.1, audioEffectCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioEffectCtx.currentTime + 2);
+    osc.connect(gain);
+    gain.connect(audioEffectCtx.destination);
+    osc.start(); osc.stop(audioEffectCtx.currentTime + 2);
+  }
+
+  function playBeep() {
+    if (!audioEffectCtx) return;
+    const osc = audioEffectCtx.createOscillator();
+    const gain = audioEffectCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.2, audioEffectCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioEffectCtx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(audioEffectCtx.destination);
+    osc.start(); osc.stop(audioEffectCtx.currentTime + 0.15);
+  }
+
+  function playGo() {
+    if (!audioEffectCtx) return;
+    const osc = audioEffectCtx.createOscillator();
+    const gain = audioEffectCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, audioEffectCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(880, audioEffectCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.3, audioEffectCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioEffectCtx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(audioEffectCtx.destination);
+    osc.start(); osc.stop(audioEffectCtx.currentTime + 0.5);
+  }
+
+  function playVictory() {
+    if (!audioEffectCtx) return;
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      const osc = audioEffectCtx.createOscillator();
+      const gain = audioEffectCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = audioEffectCtx.currentTime + i * 0.15;
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain);
+      gain.connect(audioEffectCtx.destination);
+      osc.start(t); osc.stop(t + 0.4);
+    });
+  }
+
+  function playOhh() {
+    if (!audioEffectCtx) return;
+    const osc = audioEffectCtx.createOscillator();
+    const gain = audioEffectCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, audioEffectCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(150, audioEffectCtx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.15, audioEffectCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioEffectCtx.currentTime + 1);
+    osc.connect(gain);
+    gain.connect(audioEffectCtx.destination);
+    osc.start(); osc.stop(audioEffectCtx.currentTime + 1);
+  }
+
+  function playComeOn() {
+    if (!audioEffectCtx) return;
+    [400, 500, 600].forEach((freq, i) => {
+      const osc = audioEffectCtx.createOscillator();
+      const gain = audioEffectCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      const t = audioEffectCtx.currentTime + i * 0.2;
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain);
+      gain.connect(audioEffectCtx.destination);
+      osc.start(t); osc.stop(t + 0.25);
+    });
+  }
+
+  // ================== HELPER ============================
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ================== MAIN GAME LOOP ====================
+  let gameLoopId = null;
+  let lastFrameTime = 0;
+  let gameStartTime = 0;
+  let countdownPhase = 0;
+
+  function startGame() {
+    initAudioEffects();
+    const redN = parseInt(redCount.value) || 8;
+    const blueN = parseInt(blueCount.value) || 8;
+    state.maxPlayers = redN + blueN;
+
+    GameState.initPlayers(redN, blueN);
+    state.ropePos = 0;
+    state.ropeVel = 0;
+    state.timer = CFG.GAME_DURATION;
+    state.shockwaves = [];
+    state.dustParticles = [];
+    state.clapEvents = [];
+    state.phase = 'countdown';
+    state.victoryShown = false;
+
+    UIManager.hideSetup();
+    UIManager.showStatus('Get ready...');
+    postgameOverlay.classList.remove('active');
+    Renderer.resize();
+
+    // Countdown
+    const secs = CFG.COUNTDOWN_SECS;
+    let count = secs;
+    countdownPhase = secs + 1;
+    const doCount = () => {
+      if (count > 0) {
+        UIManager.showCountdown(String(count), () => { playBeep(); });
+        count--;
+        setTimeout(doCount, 900);
+      } else {
+        UIManager.showCountdown('GO!', () => {
+          playGo();
+          setTimeout(() => {
+            UIManager.hideCountdown();
+            state.phase = 'playing';
+            gameStartTime = performance.now();
+            state.lastTimestamp = gameStartTime;
+          }, 500);
+        });
+      }
+    };
+    doCount();
+  }
+
+  function gameLoop(timestamp) {
+    if (!lastFrameTime) lastFrameTime = timestamp;
+    const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.05);
+    lastFrameTime = timestamp;
+
+    // Resize check
+    const parent = gameCanvas.parentElement;
+    if (gameCanvas.width !== parent.clientWidth || gameCanvas.height !== parent.clientHeight) {
+      Renderer.resize();
+    }
+
+    // Audio
+    AudioManager.getRMS();
+
+    // Detect faces + hands at throttled intervals
+    const video = state.dualCam ? videoRed : videoRed; // Use primary camera for detection
+    if (video.videoWidth && state.mediaPipeLoaded) {
+      const now = performance.now();
+      if (now >= state.nextFaceDetect) {
+        MediaPipeManager.detectFaces(video).then(faces => {
+          state.faceDetections = faces;
+          state.nextFaceDetect = now + CFG.FACE_DETECT_INTERVAL;
+          GameState.assignFacesToPlayers(faces);
+        }).catch(() => {});
+      }
+      if (now >= state.nextHandDetect) {
+        MediaPipeManager.detectHands(video).then(result => {
+          if (result) {
+            state.handResults = result;
+            ClapDetector.processHands(result);
+          }
+          state.nextHandDetect = now + CFG.HAND_DETECT_INTERVAL;
+        }).catch(() => {});
+      }
+    }
+
+    // Update game state
+    if (state.phase === 'playing') {
+      const elapsed = (performance.now() - gameStartTime) / 1000;
+      state.timer = Math.max(0, CFG.GAME_DURATION - elapsed);
+      Physics.update(dt);
+      GameState.updateStaminaRage();
+
+      // Auto-activate rage skill 1.5s after ready (simulates "raise hand")
+      if (state.redSkillReady && !state.redSkillActive) {
+        if (!state.redSkillReadyTime) state.redSkillReadyTime = performance.now();
+        if (performance.now() - state.redSkillReadyTime > 1500) {
+          state.redSkillActive = true;
+          state.redSkillReady = false;
+          state.redSkillReadyTime = 0;
+          state.redSkillTimer = 10;
+          playCheer();
+          UIManager.showStatus('RED: MIGHTY PULL activated!');
+        }
+      }
+      if (state.blueSkillReady && !state.blueSkillActive) {
+        if (!state.blueSkillReadyTime) state.blueSkillReadyTime = performance.now();
+        if (performance.now() - state.blueSkillReadyTime > 1500) {
+          state.blueSkillActive = true;
+          state.blueSkillReady = false;
+          state.blueSkillReadyTime = 0;
+          state.blueSkillTimer = 10;
+          playCheer();
+          UIManager.showStatus('BLUE: GRIP THE GROUND activated!');
+        }
+      }
+
+      // Check win
+      if (Physics.isWin()) {
+        const winner = state.ropePos < 0 ? 'red' : 'blue';
+        endGame(winner);
+        return;
+      }
+
+      if (state.timer <= 0) {
+        const winner = state.ropePos <= 0 ? 'red' : 'blue';
+        endGame(winner);
+        return;
+      }
+
+      // Virtual crowd shouts
+      const highComboPlayers = Object.values(state.comboCount).filter(c => c >= 3);
+      if (highComboPlayers.length > 0 && Math.random() < 0.003) playOhh();
+      const flagPct = Physics.getFlagPos();
+      if ((flagPct > 80 || flagPct < 20) && Math.random() < 0.005) playComeOn();
+    }
+
+    // Render
+    Renderer.drawGame();
+    UIManager.updateTimer(state.timer);
+    UIManager.updateScoreBar();
+    UIManager.updateWarnings();
+    UIManager.updateSkills();
+    UIManager.updatePlayerOverlays();
+
+    // Camera overlay - draw face boxes
+    drawCameraOverlays();
+
+    gameLoopId = requestAnimationFrame(gameLoop);
+  }
+
+  function drawCameraOverlays() {
+    const draw = (ctx, canvas) => {
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+      if (!state.faceDetections || !W || !H) return;
+      const vw = videoRed.videoWidth || 640;
+      const vh = videoRed.videoHeight || 480;
+      const scaleX = W / vw;
+      const scaleY = H / vh;
+      const midX = W / 2;
+      for (const det of state.faceDetections) {
+        const box = det.boundingBox;
+        if (!box) continue;
+        const x = box.originX * scaleX;
+        const y = box.originY * scaleY;
+        const w = box.width * scaleX;
+        const h = box.height * scaleY;
+        const cx = x + w / 2;
+        const color = cx < midX ? '#e74c3c' : '#3498db';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(2, W / 320);
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = color;
+        ctx.font = `bold ${Math.max(10, W/50)}px "Segoe UI"`;
+        ctx.fillText(cx < midX ? 'RED' : 'BLUE', x, Math.max(4, y - 4));
+      }
+    };
+    draw(oCtxR, overlayRed);
+    draw(oCtxB, overlayBlue);
+  }
+
+  function endGame(winner) {
+    if (state.victoryShown) return;
+    state.victoryShown = true;
+    state.phase = 'ended';
+    playVictory();
+    UIManager.showPostGame(winner);
+    if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+  }
+
+  // ================== SETUP =============================
+  camToggle.addEventListener('click', () => {
+    const dual = !state.dualCam;
+    state.dualCam = dual;
+    camToggle.textContent = dual ? 'Dual Camera' : 'Single Camera';
+    camToggle.classList.toggle('active', dual);
+  });
+
+  startBtn.addEventListener('click', async () => {
+    startBtn.disabled = true;
+    startBtn.textContent = 'Initializing...';
+
+    try {
+      await CameraManager.init(state.dualCam);
+      const audioOk = await AudioManager.init();
+      if (!audioOk) UIManager.showStatus('Microphone access denied - clap detection disabled');
+      const mpOk = await MediaPipeManager.load();
+      if (!mpOk) {
+        UIManager.showStatus('MediaPipe failed to load - face/hand detection disabled');
+      }
+      startGame();
+      if (gameLoopId) cancelAnimationFrame(gameLoopId);
+      gameLoopId = requestAnimationFrame(gameLoop);
+    } catch(e) {
+      UIManager.showStatus('Error: ' + e.message);
+      startBtn.disabled = false;
+      startBtn.textContent = 'START GAME';
+    }
+  });
+
+  document.getElementById('play-again-btn').addEventListener('click', () => {
+    postgameOverlay.classList.remove('active');
+    setupScreen.classList.remove('hidden');
+    startBtn.disabled = false;
+    startBtn.textContent = 'START GAME';
+    state.phase = 'setup';
+    if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+    // Re-init game loop to keep camera feed
+    gameLoopId = requestAnimationFrame(gameLoop);
+  });
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    if (gameCanvas.parentElement) Renderer.resize();
+    CameraManager.resizeCanvases();
+  });
+
+  // Start background animation loop even before game starts (shows camera)
+  gameLoopId = requestAnimationFrame(gameLoop);
+
+})();
+</script>
+</body>
+</html>

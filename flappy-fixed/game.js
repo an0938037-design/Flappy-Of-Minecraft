@@ -1,7 +1,13 @@
-const ASSETS = 'pjt1/';
+const ASSETS = 'https://flappy-of-minecraft.vercel.app/pjt1/';
 
-const SCROLL_SPEED = 420;
-const SPAWN_INTERVAL = 40;
+const CHAPTER_DURATION = 40;
+const SCROLL_SPEED = 280;
+const SPAWN_INTERVAL = 350;
+
+const CHAPTERS = [
+  { id:1, duration:CHAPTER_DURATION },
+  { id:2, duration:CHAPTER_DURATION }
+];
 
 const LOGICAL_W = 1000;
 const LOGICAL_H = 600;
@@ -14,6 +20,10 @@ const OBSTACLE_MAX_PCT = 0.170;
 const MAX_HEIGHT_BOTTOM = 236;
 const MAX_HEIGHT_MID = 159;
 const MAX_HEIGHT_TOP = 184;
+const GAP_SIZE = 504;
+const MIN_BOTTOM_PER_ZONE = 4;
+const MIN_MID_PER_ZONE = 3;
+const MIN_TOP_PER_ZONE = 3;
 const BIG_OBSTACLES = new Set(['bv1-1-o-3.png','bv2-2-a-3.png','bv3-12-a-3.png','bv3-2-b-3.png']);
 
 const CHAR_MAP = {
@@ -40,7 +50,6 @@ function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 function lerp(a,b,t){return a+(b-a)*t}
 function seededRandom(seed){let s=seed;return function(){s=(s*1664525+1013904223)&0xFFFFFFFF;return (s>>>0)/0xFFFFFFFF}}
 
-// ========== TIGHT BOUNDING BOX ==========
 function computeTightBoundingBox(src){
   const w=src.naturalWidth||src.width, h=src.naturalHeight||src.height;
   const c=document.createElement('canvas');
@@ -58,7 +67,6 @@ function computeTightBoundingBox(src){
   return minX>maxX?null:{x:minX+3,y:minY+3,width:Math.max(1,maxX-minX-5),height:Math.max(1,maxY-minY-5)};
 }
 
-// ========== CHROMA KEY ==========
 function createChromaKeyedImage(srcImg, keyColor, tolerance) {
   keyColor=keyColor||[0,255,0]; tolerance=tolerance||80;
   const c = document.createElement('canvas');
@@ -75,7 +83,6 @@ function createChromaKeyedImage(srcImg, keyColor, tolerance) {
   return c;
 }
 
-// ========== ASSET MANAGER ==========
 class AssetManager {
   constructor() {
     this.images = {};
@@ -106,7 +113,7 @@ class AssetManager {
   }
 
   async init(obstacleFiles,progressCb) {
-    const total=Object.keys(GROUND_FILES).length+obstacleFiles.length+Object.keys(CHAR_MAP).length*2+2;
+    const total=Object.keys(GROUND_FILES).length+obstacleFiles.length+Object.keys(CHAR_MAP).length*2+1;
     let loaded=0;
     const done=(label)=>{loaded++;if(progressCb)progressCb(Math.floor(loaded/total*100),label)};
 
@@ -135,9 +142,6 @@ class AssetManager {
     this.images.clouds = await this.load(ASSETS + 'clouds/cloud1.png','cloud');
     done('cloud');
 
-    this.images.hp = await this.load(ASSETS + 'hp.png','hp');
-    done('hp');
-
     this.ready = true;
   }
 
@@ -146,7 +150,6 @@ class AssetManager {
   getGround(key) { return this.images[key]; }
 }
 
-// ========== CLOUD GENERATOR ==========
 function createCloudTexture(w,h) {
   const c = document.createElement('canvas');
   c.width=w; c.height=h;
@@ -176,7 +179,6 @@ class Cloud {
   update(dt,speedMul){this.x-=this.speed*dt*speedMul}
 }
 
-// ========== TERRAIN ==========
 class Terrain {
   constructor() {
     this.cols=new Map();
@@ -199,8 +201,8 @@ class Terrain {
     layers[2]=r2<0.2?'se0':'dt0';
     const r3=this.rng();
     let l3='dt0';
-    if(r3<0.05) l3='in0';
-    else if(r3<0.1) l3='cl0';
+    if(r3<0.1) l3='cl0';
+    else if(r3<0.05) l3='in0';
     layers[3]=l3;
     layers[4]=this.rng()<0.1?'gs1':'gs0';
     return layers;
@@ -262,7 +264,6 @@ class Terrain {
   update(dt,speed){this.offset+=speed*dt}
 }
 
-// ========== BIRD ==========
 class Bird {
   constructor() {
     this.x=0; this.y=0;
@@ -283,16 +284,16 @@ class Bird {
     this.y=canvasH*0.35;
     this.vy=0;
     const h6=canvasH/600;
-    this.gravity=750*h6;
-    this.jumpFull=390*h6;
-    this.jumpHand=310*h6;
-    this.maxFallSpeed=480*h6;
+    this.gravity=1050*h6;
+    this.jumpFull=-420*h6;
+    this.jumpHand=-350*h6;
+    this.maxFallSpeed=650*h6;
     this.cooldown=0;
   }
 
   flap(fullForce) {
     if(this.cooldown>0) return;
-    this.vy=-(fullForce!==false?this.jumpFull:this.jumpHand);
+    this.vy=fullForce!==false?this.jumpFull:this.jumpHand;
     this.cooldown=this.cooldownMax;
   }
 
@@ -334,11 +335,17 @@ class Bird {
   }
 }
 
-// ========== OBSTACLE MANAGER ==========
 class ObstacleManager {
   constructor() {
     this.active=[];
+    this.zones=[];
+    this.zoneIdx=0;
+    this.currentZone=null;
+    this.zoneSpawnIdx=0;
     this.nextSpawnX=0;
+    this.generatedZones=0;
+    this.zoneSpawnCounts={};
+    this.obstaclesSpawnedThisZone=0;
   }
 
   getScaledDims(img,canvasW,pos,file) {
@@ -354,29 +361,107 @@ class ObstacleManager {
     return {w:targetW,h:targetH};
   }
 
-  init(canvasW) {
-    this.active=[];
-    this.nextSpawnX=canvasW+80;
-  }
+  generateZone(chapterId, mult=1) {
+    const pool=assets.obstacles.filter(o=>o.chapters.includes(chapterId));
+    if(!pool.length) return [];
 
-  spawnNext(canvasW,canvasH) {
-    const pool=assets.obstacles.filter(o=>o.img);
-    if(!pool.length) return;
+    const counts={b:0,t:0,m:0};
+
     const weighted=[];
     for(const o of pool){
       const w=o.type==='n'?5:1;
       for(let i=0;i<w;i++) weighted.push(o);
     }
-    const data=weighted[randInt(0,weighted.length-1)];
 
-    const dim=this.getScaledDims(data.img,canvasW,data.pos,data.file);
+    const shuffled=[...weighted];
+    for(let i=shuffled.length-1;i>0;i--){const j=randInt(0,i);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]}
+
+    const zone=[];
+    const used={};
+    const maxTotal=randInt(Math.round(20*mult),Math.round(32*mult));
+    const typeMax={b:Math.round(12*mult),t:Math.round(10*mult),m:Math.round(10*mult)};
+
+    for(const o of shuffled){
+      if(zone.length>=maxTotal) break;
+      if(counts[o.pos]>=typeMax[o.pos]) continue;
+      const key=o.file;
+      const maxPerZone=Math.round(o.maxPerZone*1.5);
+      if(maxPerZone>0&&(used[key]||0)>=maxPerZone) continue;
+      if(!zone.some(z=>z.file===key)){
+        zone.push(o);
+        counts[o.pos]++; used[key]=(used[key]||0)+1;
+      }
+    }
+
+    const need={b:MIN_BOTTOM_PER_ZONE-counts.b,m:MIN_MID_PER_ZONE-counts.m,t:MIN_TOP_PER_ZONE-counts.t};
+    for(const pos of ['b','m','t']){
+      while(need[pos]>0){
+        const candidates=pool.filter(o=>o.pos===pos&&(!zone.some(z=>z.file===o.file))&&((used[o.file]||0)<Math.round(o.maxPerZone*1.5)));
+        if(!candidates.length) break;
+        const pick=candidates[randInt(0,candidates.length-1)];
+        zone.push(pick);
+        counts[pick.pos]++; used[pick.file]=(used[pick.file]||0)+1;
+        need[pos]--;
+      }
+    }
+
+    return zone;
+  }
+
+  initZones(chapterId) {
+    this.zones=[];
+    this.zoneIdx=0;
+    this.zoneSpawnIdx=0;
+    this.nextSpawnX=0;
+    this.active=[];
+    this.generatedZones=0;
+    this.zoneSpawnCounts={};
+    this.obstaclesSpawnedThisZone=0;
+
+    for(let i=0;i<4;i++){
+      const mult=(chapterId===1||(chapterId===2&&i<2))?1.5:1;
+      const zone=this.generateZone(chapterId,mult);
+      if(zone.length) this.zones.push(zone);
+    }
+    this.currentZone=this.zones[0]||[];
+  }
+
+  getNextObstacle() {
+    if(!this.currentZone||this.zoneSpawnIdx>=this.currentZone.length){
+      this.zoneIdx++;
+      this.generatedZones++;
+      this.obstaclesSpawnedThisZone=0;
+      if(this.zoneIdx>=this.zones.length) this.zones.push(this.generateZone(game.currentChapter));
+      this.currentZone=this.zones[this.zoneIdx]||[];
+      this.zoneSpawnIdx=0;
+      if(!this.currentZone.length) return null;
+    }
+    return this.currentZone[this.zoneSpawnIdx++];
+  }
+
+  spawnNext(canvasW,canvasH) {
+    const data=this.getNextObstacle();
+    if(!data) return;
+
+    const img=data.img;
+    if(!img) return;
+
+    const dim=this.getScaledDims(img,canvasW,data.pos,data.file);
     const groundY=GROUND_Y;
+    const birdW=BIRD_SIZE;
 
     let x=this.nextSpawnX;
     const lastObs=this.active[this.active.length-1];
     if(lastObs){
-      const minX=lastObs.x+lastObs.dim.w+10;
-      if(x<minX) x=minX+10;
+      const lastP=lastObs.data.pos, currP=data.pos;
+      let minGap=birdW*2;
+      if(lastP!==currP){
+        const p=lastP+currP;
+        if(p==='mt'||p==='tm') minGap=birdW*1.5;
+        else if(p==='mb'||p==='bm') minGap=birdW*2.5;
+      }
+      const desiredX=lastObs.x+lastObs.dim.w+minGap;
+      if(x<desiredX) x=desiredX+30;
     }
     if(x<canvasW) x=canvasW+50;
 
@@ -387,9 +472,11 @@ class ObstacleManager {
       case 't': y=0; break;
     }
 
-    const obs={ data, img:data.img, x, y, dim };
+    const obs={ data, img, x, y, dim };
     this.active.push(obs);
-    this.nextSpawnX=x+dim.w+randInt(SPAWN_INTERVAL-20,SPAWN_INTERVAL+20);
+    this.obstaclesSpawnedThisZone++;
+
+    this.nextSpawnX=x+dim.w+SPAWN_INTERVAL;
   }
 
   update(dt,speed) {
@@ -414,7 +501,7 @@ class ObstacleManager {
   checkCollision(birdBounds) {
     for(const o of this.active){
       const bbox=o.data.tightBBox;
-      const inset=20;
+      const inset=10;
       if(bbox){
         const scX=o.dim.w/(o.img.naturalWidth||o.img.width||o.dim.w);
         const scY=o.dim.h/(o.img.naturalHeight||o.img.height||o.dim.h);
@@ -448,9 +535,30 @@ class ObstacleManager {
       }
     }
   }
+
+  zonesCompleted(){return this.generatedZones}
 }
 
-// ========== HAND TRACKER ==========
+function getSkyColor(chapterId,progress) {
+  if(chapterId>1) return 'rgb(17,17,71)';
+  const t=Math.min(1,Math.max(0,progress));
+  if(t<0.8){
+    const p=t/0.8;
+    return `rgb(${Math.round(lerp(120,255,p))},${Math.round(lerp(167,160,p))},${Math.round(lerp(255,122,p))})`;
+  } else if(t<0.9){
+    const p=(t-0.8)/0.1;
+    return `rgb(${Math.round(lerp(255,17,p))},${Math.round(lerp(160,17,p))},${Math.round(lerp(122,71,p))})`;
+  } else {
+    return 'rgb(17,17,71)';
+  }
+}
+function adjustBrightness(rgb,amt){
+  const m=rgb.match(/\d+/g);
+  if(!m) return rgb;
+  const [r,g,b]=m.map(Number);
+  return `rgb(${clamp(r+amt,0,255)},${clamp(g+amt,0,255)},${clamp(b+amt,0,255)})`;
+}
+
 class HandTracker {
   constructor() {
     this.hands=null;
@@ -464,7 +572,6 @@ class HandTracker {
 
   async init(camera,callback) {
     try {
-      if(typeof Hands==='undefined') throw new Error('MediaPipe Hands library not loaded');
       this.hands=new Hands({
         locateFile:(f)=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f
       });
@@ -486,7 +593,6 @@ class HandTracker {
             const dt=(now-self.lastWristTime)/1000;
             if(dt>0.01){
               const velocity=(logicalY-self.lastWristY)/dt;
-              // Upward motion (negative velocity) triggers jump
               if(velocity<-150&&callback) callback();
             }
           }
@@ -517,19 +623,28 @@ class HandTracker {
     }
   }
 
+  reset() {
+    this.hasHand=false;
+    this.lastWristY=null;
+    this.lastWristTime=0;
+    this.landmarks=null;
+  }
+
   stop(){
     this.running=false;
     if(this.hands) try{this.hands.close()}catch(e){}
   }
 }
 
-// ========== MAIN GAME ==========
 class Game {
   constructor() {
     this.state='menu';
     this.selectedChar='bee';
+    this.currentChapter=1;
+    this.currentZone=0;
     this.score=0;
     this.highScore=parseInt(localStorage.getItem('fom_highscore')||'0');
+    this.chapterStartTime=0;
     this.currentSpeed=SCROLL_SPEED;
 
     this.canvas=document.getElementById('gameCanvas');
@@ -545,10 +660,16 @@ class Game {
     this.camera=new Camera(document.getElementById('webcamVideo'));
 
     this.lastTime=0;
+    this.chapterProgress=0;
+    this.oreTimer=0;
     this.rafId=null;
     this.countdownTimer=null;
+    this.chapterTimeout=null;
     this.webcamRafId=null;
+    this.chapterNotif=null;
+    this.currentSkyColor='#78A7FF';
     this.groundSeed=0;
+    this.endless=false;
 
     this.setupUI();
     this.setupControls();
@@ -563,6 +684,7 @@ class Game {
         document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
         document.getElementById('char-select').style.display='flex';
         this.handTracker.stop();
+        this.camera.stop();
         this.state='menu';
         return;
       }
@@ -577,6 +699,7 @@ class Game {
         document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
         document.getElementById('char-select').style.display='flex';
         this.handTracker.stop();
+        this.camera.stop();
         this.state='menu';
         return;
       }
@@ -615,6 +738,7 @@ class Game {
     const playBtn=document.getElementById('playBtn');
     playBtn.classList.add('hidden');
     document.getElementById('webcam-area').style.display='flex';
+    this.endless=document.getElementById('endlessCb').checked;
 
     try{
       await this.handTracker.init(this.camera,()=>{
@@ -663,6 +787,14 @@ class Game {
     if(goEl) goEl.style.display='none';
     this.state='playing';
     this.score=0;
+    this.currentChapter=1;
+    this.currentZone=0;
+    this.chapterProgress=0;
+    this.oreTimer=0;
+    this._villageObs=new Set();
+
+    const ch=CHAPTERS[0];
+    this.chapterStartTime=performance.now();
     this.currentSpeed=SCROLL_SPEED;
 
     this.canvas.width=LOGICAL_W;
@@ -673,12 +805,13 @@ class Game {
     this.terrain.setSeed(this.groundSeed);
     this.terrain.offset=0;
     this.terrain.cols.clear();
+    this.terrain.resetOreCount();
 
-    this.obstacles.init(LOGICAL_W);
+    this.obstacles.initZones(1);
+    this.obstacles.nextSpawnX=LOGICAL_W+50;
 
     this.clouds=[];
     for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
-    if(!this.camera.running) this.camera.start().catch(()=>{});
 
     this.lastTime=performance.now();
     this._loop(this.lastTime);
@@ -694,7 +827,16 @@ class Game {
 
   update(dt) {
     if(this.state==='playing'){
+      const elapsed=(performance.now()-this.chapterStartTime)/1000;
+      const ch=CHAPTERS[this.currentChapter-1];
+      const dur=ch?ch.duration:CHAPTER_DURATION;
+      this.chapterProgress=Math.min(1,elapsed/dur);
+      this.currentSpeed=SCROLL_SPEED;
+
       this.terrain.update(dt,this.currentSpeed*0.5);
+      this.oreTimer+=dt;
+      const curZone=Math.floor(this.oreTimer/10);
+      if(curZone!==this.terrain.zoneOreReset){this.groundSeed=Math.floor(Math.random()*10000);this.terrain.setSeed(this.groundSeed);this.terrain.zoneOreReset=curZone}
 
       const groundY=GROUND_Y;
       if(this.bird.update(dt,groundY)){
@@ -713,32 +855,39 @@ class Game {
       const bb=this.bird.getBounds();
       const hitObs=this.obstacles.checkCollision(bb);
       if(hitObs){
-        const idx=this.obstacles.active.indexOf(hitObs);
-        if(idx>=0) this.obstacles.active.splice(idx,1);
         this.gameOver();
         return;
       }
 
-      if(!this._villageObs) this._villageObs=new Map();
+      if(elapsed>=dur||this.obstacles.zonesCompleted()>=4){
+        this.chapterComplete();
+        return;
+      }
+
+      if(!this._villageObs) this._villageObs=new Set();
       let hasActiveVillage=false;
       for(const o of this.obstacles.active){
         if(o.data.pos==='b'&&o.data.type==='v'){
           const id=o.data.file+'_'+Math.floor(o.x/100);
           if(!this._villageObs.has(id)){
             this.terrain.setPath(o.x,o.x+o.dim.w);
-            this._villageObs.set(id,{startX:o.x,endX:o.x+o.dim.w});
+            this._villageObs.add(id);
           }
           hasActiveVillage=true;
         }
       }
       if(!hasActiveVillage&&this._villageObs.size){
-        for(const range of this._villageObs.values()){
-          this.terrain.revertPath(range.startX,range.endX);
-        }
+        this.terrain.revertPath(0,this.canvas.width*2);
         this._villageObs.clear();
       }
 
       this.updateUI();
+    }
+
+    if(this.chapterNotif){
+      this.chapterNotif.timer-=dt;
+      this.chapterNotif.alpha=Math.max(0,this.chapterNotif.timer/2);
+      if(this.chapterNotif.timer<=0)this.chapterNotif=null;
     }
 
     for(const c of this.clouds) c.update(dt,this.currentSpeed/100);
@@ -756,22 +905,34 @@ class Game {
     ctx.save();
     ctx.scale(scale,scale);
 
-    const skyColor='#111147';
+    const skyColor=this.currentChapter<=CHAPTERS.length?getSkyColor(this.currentChapter,this.chapterProgress):'rgb(17,17,71)';
+    this.currentSkyColor=skyColor;
     const ga=document.getElementById('gameArea');
     if(ga) ga.style.background=skyColor;
     const grad=ctx.createLinearGradient(0,0,0,h);
     grad.addColorStop(0,skyColor);
-    grad.addColorStop(0.7,'#0d0d3d');
+    grad.addColorStop(0.7,adjustBrightness(skyColor,-40));
     ctx.fillStyle=grad;
     ctx.fillRect(0,0,w,h);
 
     for(const c of this.clouds) if(c.img) ctx.drawImage(c.img,c.x,c.y);
 
-    if(this.state==='playing'||this.state==='gameover'){
+    if(this.state==='playing'||this.state==='gameover'||this.state==='chaptercomplete'){
       this.terrain.render(ctx,w,h);
       this.obstacles.render(ctx);
       this.bird.render(ctx,this.selectedChar);
       this.obstacles.renderFront(ctx);
+    }
+
+    if(this.chapterNotif){
+      ctx.save();
+      ctx.globalAlpha=this.chapterNotif.alpha;
+      ctx.fillStyle='#ffd700';
+      ctx.font='bold 28px "Press Start 2P",monospace';
+      ctx.textAlign='center';
+      ctx.shadowColor='#000';ctx.shadowBlur=8;
+      ctx.fillText(this.chapterNotif.text,w/2,h*0.18);
+      ctx.restore();
     }
 
     ctx.restore();
@@ -820,12 +981,16 @@ class Game {
     const scrEl=document.getElementById('score');
     if(scrEl) scrEl.textContent='Score: '+this.score;
     document.getElementById('highScoreDisplay').textContent=this.highScore;
+    document.getElementById('chapterDisplay').textContent=this.currentChapter;
+    const elapsed=(performance.now()-this.chapterStartTime)/1000;
+    document.getElementById('timerDisplay').textContent=Math.ceil(Math.max(0,CHAPTER_DURATION-elapsed));
+    document.getElementById('speedDisplay').textContent=(this.currentSpeed/100).toFixed(1);
   }
 
   gameOver() {
     if(this.state==='gameover') return;
     this.state='gameover';
-    this.camera.resetSmoothing();
+    this.camera.stop();
     if(this.rafId){cancelAnimationFrame(this.rafId);this.rafId=null}
     if(this.score>this.highScore){
       this.highScore=this.score;
@@ -853,11 +1018,49 @@ class Game {
     document.getElementById('char-select').style.display='flex';
 
     this.handTracker.stop();
+    this.handTracker.reset();
   }
 
+  chapterComplete() {
+    if(this.chapterTimeout){clearTimeout(this.chapterTimeout);this.chapterTimeout=null}
+    if(!this.endless&&this.currentChapter>=CHAPTERS.length){
+      this.state='gameover';
+      const ctx=this.ctx;
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+      ctx.fillStyle='#ffd700';
+      ctx.font='30px "Press Start 2P",monospace';
+      ctx.textAlign='center';
+      ctx.fillText('ALL CHAPTERS',this.canvas.width/2,this.canvas.height/2-20);
+      ctx.fillText('COMPLETE!',this.canvas.width/2,this.canvas.height/2+30);
+      return;
+    }
+
+    this.state='chaptercomplete';
+    this.currentChapter++;
+    this.currentZone=0;
+    this.chapterProgress=0;
+    this.oreTimer=0;
+    this._villageObs=new Set();
+
+    const chIdx=this.endless?Math.min(this.currentChapter,CHAPTERS.length):this.currentChapter;
+    const ch=CHAPTERS[chIdx-1];
+    this.chapterStartTime=performance.now();
+    this.currentSpeed=SCROLL_SPEED;
+    this.terrain.resetOreCount();
+    this.terrain.cols.clear();
+    this.terrain.offset=0;
+    this.obstacles.initZones(chIdx);
+    this.obstacles.nextSpawnX=LOGICAL_W+50;
+    this.bird.vy=0;
+    this.clouds=[];
+    for(let i=0;i<6;i++) this.clouds.push(new Cloud(LOGICAL_W,LOGICAL_H));
+
+    this.chapterNotif={text:'CHAPTER '+this.currentChapter,alpha:1,timer:2};
+    this.state='playing';
+  }
 }
 
-// ========== INIT ==========
 const assets=new AssetManager();
 let game;
 
@@ -875,7 +1078,7 @@ function resizeCanvas(){
 async function init() {
   const progressCb=window._loadingPct||function(){};
   let obstacleFiles=[];
-  try{obstacleFiles=await (await fetch('obstacles.json')).json()}catch(e){obstacleFiles=["bn1-12-a-2.png","bn1-2-b-2.png","bn1-2-c-2.png","bv1-1-o-3.png","bv2-2-a-3.png","bv3-12-a-3.png","bv3-2-b-3.png","mn1-2-o-4.png","mv2-2-b-3.png","tn1-2-o-4.png"]}
+  try{obstacleFiles=await (await fetch('https://flappy-of-minecraft.vercel.app/obstacles.json')).json()}catch(e){obstacleFiles=[]}
   await assets.init(obstacleFiles,progressCb);
 
   const setCanvasSize=()=>{resizeCanvas()};
@@ -898,12 +1101,18 @@ async function init() {
       document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
       document.getElementById('char-select').style.display='flex';
       game.handTracker.stop();
+      game.handTracker.reset();
+      game.camera.stop();
       game.state='menu';
     }
   });
   document.getElementById('btnFullscreen').addEventListener('click',()=>{
     if(document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
+  });
+
+  document.getElementById('endlessCb').addEventListener('change',function(){
+    if(game) game.endless=this.checked;
   });
 
   document.addEventListener('keydown',(e)=>{
