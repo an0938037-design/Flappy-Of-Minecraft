@@ -18,8 +18,8 @@ const BIG_OBSTACLES = new Set(['bv1-1-o-3.png','bv2-2-a-3.png','bv3-12-a-3.png',
 
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
-  parrot:{ crt:'nvo2.png', logo:'logo3.png', label:'PARROT' },
-  bat:{ crt:'nvo3.png', logo:'logo2.png', label:'BAT' }
+  parrot:{ crt:'nvo3.png', logo:'logo3.png', label:'PARROT' },
+  bat:{ crt:'nvo2.png', logo:'logo2.png', label:'BAT' }
 };
 
 const GROUND_FILES = { gs0:'gs0.png', gs1:'gs1.png', dt0:'dt0.png', se0:'se0.png', cl0:'cl0.png', in0:'in0.png' };
