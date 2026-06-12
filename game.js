@@ -80,7 +80,6 @@ class AssetManager {
   constructor() {
     this.images = {};
     this.obstacles = [];
-    this.crtBBox = {};
     this.ready = false;
   }
 
@@ -127,8 +126,7 @@ class AssetManager {
     }
 
     for (const [ch,map] of Object.entries(CHAR_MAP)) {
-      this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt,ch+' crt',true);
-      this.crtBBox[ch] = this.images['crt_'+ch] ? computeTightBoundingBox(this.images['crt_'+ch]) : null;
+      this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt,ch+' crt',false);
       done(ch+' crt');
       this.images['logo_'+ch] = await this.load(ASSETS + 'logo/' + map.logo,ch+' logo');
       done(ch+' logo');
@@ -318,16 +316,8 @@ class Bird {
     ctx.rotate(clamp(this.vy*0.05,-0.3,0.5));
     const img=assets?assets.getCrt(charId||'bee'):null;
     if(img){
-      try{
-        const bbox=assets.crtBBox?assets.crtBBox[charId||'bee']:null;
-        if(bbox&&bbox.width>0&&bbox.height>0){
-          const s=Math.min((this.w-16)/bbox.width,(this.h-16)/bbox.height);
-          ctx.drawImage(img,-this.w/2*s,-this.h/2*s,this.w*s,this.h*s);
-        } else {
-          ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
-        }
-      }catch(e){
-        ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
+      try{ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h)}catch(e){
+        ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(0,0,this.w/2,0,Math.PI*2);ctx.fill();
       }
     } else {
       ctx.fillStyle='#FFD700'; ctx.beginPath();
