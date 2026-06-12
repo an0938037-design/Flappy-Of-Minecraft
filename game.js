@@ -360,10 +360,14 @@ class ObstacleManager {
   }
 
   spawnNext(canvasW,canvasH) {
-    const pool=assets.obstacles;
+    const pool=assets.obstacles.filter(o=>o.img);
     if(!pool.length) return;
-    const data=pool[randInt(0,pool.length-1)];
-    if(!data.img) return;
+    const weighted=[];
+    for(const o of pool){
+      const w=o.type==='n'?5:1;
+      for(let i=0;i<w;i++) weighted.push(o);
+    }
+    const data=weighted[randInt(0,weighted.length-1)];
 
     const dim=this.getScaledDims(data.img,canvasW,data.pos,data.file);
     const groundY=GROUND_Y;
