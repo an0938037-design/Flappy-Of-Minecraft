@@ -929,17 +929,6 @@ async function init() {
   window.addEventListener('resize',()=>{resizeCanvas()});
   window.addEventListener('orientationchange',()=>setTimeout(resizeCanvas,100));
 
-  document.getElementById('btnRestart').addEventListener('click',()=>{
-    if(game.state==='gameover'||game.state==='playing'){
-      const goEl=document.getElementById('gameOver');
-      if(goEl) goEl.style.display='none';
-      document.getElementById('playBtn').classList.remove('hidden');
-      document.getElementById('playBtn').textContent='↻ PLAY AGAIN';
-      document.getElementById('char-select').style.display='flex';
-      game.handTracker.stop();
-      game.state='menu';
-    }
-  });
   document.getElementById('btnFullscreen').addEventListener('click',()=>{
     if(document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
