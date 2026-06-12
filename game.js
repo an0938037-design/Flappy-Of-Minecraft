@@ -356,7 +356,6 @@ class ObstacleManager {
 
   init(canvasW) {
     this.active=[];
-    this.nextSpawnX=canvasW+80;
   }
 
   spawnNext(canvasW,canvasH) {
@@ -372,11 +371,12 @@ class ObstacleManager {
     const dim=this.getScaledDims(data.img,canvasW,data.pos,data.file);
     const groundY=GROUND_Y;
 
-    let x=this.nextSpawnX;
+    let x;
     const lastObs=this.active[this.active.length-1];
     if(lastObs){
-      const minX=lastObs.x+lastObs.dim.w+10;
-      if(x<minX) x=minX+10;
+      x=lastObs.x+lastObs.dim.w+SPAWN_GAP;
+    } else {
+      x=canvasW+80;
     }
     if(x<canvasW) x=canvasW+50;
 
@@ -389,7 +389,6 @@ class ObstacleManager {
 
     const obs={ data, img:data.img, x, y, dim };
     this.active.push(obs);
-    this.nextSpawnX=x+dim.w+SPAWN_GAP;
   }
 
   update(dt,speed) {
