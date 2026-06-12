@@ -1,7 +1,7 @@
 const ASSETS = 'pjt1/';
 
 const SCROLL_SPEED = 420;
-const SPAWN_INTERVAL = 130;
+const SPAWN_INTERVAL = 80;
 
 const LOGICAL_W = 1000;
 const LOGICAL_H = 600;
@@ -360,7 +360,7 @@ class ObstacleManager {
   }
 
   spawnNext(canvasW,canvasH) {
-    const pool=assets.obstacles.filter(o=>o.img&&o.chapters.includes(game.gameChapter));
+    const pool=assets.obstacles.filter(o=>o.img);
     if(!pool.length) return;
     const weighted=[];
     for(const o of pool){
@@ -531,7 +531,6 @@ class Game {
     this.score=0;
     this.highScore=parseInt(localStorage.getItem('fom_highscore')||'0');
     this.currentSpeed=SCROLL_SPEED;
-    this.gameChapter=1;
 
     this.canvas=document.getElementById('gameCanvas');
     this.ctx=this.canvas.getContext('2d');
@@ -665,7 +664,6 @@ class Game {
     this.state='playing';
     this.score=0;
     this.currentSpeed=SCROLL_SPEED;
-    this.gameChapter=1;
 
     this.canvas.width=LOGICAL_W;
     this.canvas.height=LOGICAL_H;
@@ -721,8 +719,6 @@ class Game {
         return;
       }
 
-      if(this.score>=8&&this.gameChapter<2) this.gameChapter=2;
-
       if(!this._villageObs) this._villageObs=new Map();
       let hasActiveVillage=false;
       for(const o of this.obstacles.active){
@@ -760,12 +756,12 @@ class Game {
     ctx.save();
     ctx.scale(scale,scale);
 
-    const skyColor='#78A7FF';
+    const skyColor='#111147';
     const ga=document.getElementById('gameArea');
     if(ga) ga.style.background=skyColor;
     const grad=ctx.createLinearGradient(0,0,0,h);
     grad.addColorStop(0,skyColor);
-    grad.addColorStop(0.7,'#5A8FCF');
+    grad.addColorStop(0.7,'#0d0d3d');
     ctx.fillStyle=grad;
     ctx.fillRect(0,0,w,h);
 
