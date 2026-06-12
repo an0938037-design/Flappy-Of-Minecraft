@@ -1,7 +1,7 @@
 const ASSETS = 'pjt1/';
 
 const SCROLL_SPEED = 420;
-const SPAWN_INTERVAL = 40;
+const SPAWN_GAP = 30;
 
 const LOGICAL_W = 1000;
 const LOGICAL_H = 600;
@@ -199,7 +199,7 @@ class Terrain {
     layers[2]=r2<0.2?'se0':'dt0';
     const r3=this.rng();
     let l3='dt0';
-    if(r3<0.05) l3='in0';
+    if(layers[2]==='dt0'&&r3<0.05) l3='in0';
     else if(r3<0.1) l3='cl0';
     layers[3]=l3;
     layers[4]=this.rng()<0.1?'gs1':'gs0';
@@ -383,13 +383,13 @@ class ObstacleManager {
     let y;
     switch(data.pos){
       case 'b': y=clamp(groundY-dim.h,0,groundY-dim.h); break;
-      case 'm': y=clamp(rand(canvasH*0.3,canvasH*0.7),10,groundY-dim.h-10); break;
+      case 'm': y=canvasH*0.35; break;
       case 't': y=0; break;
     }
 
     const obs={ data, img:data.img, x, y, dim };
     this.active.push(obs);
-    this.nextSpawnX=x+dim.w+randInt(SPAWN_INTERVAL-20,SPAWN_INTERVAL+20);
+    this.nextSpawnX=x+dim.w+SPAWN_GAP;
   }
 
   update(dt,speed) {
