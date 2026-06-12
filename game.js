@@ -903,7 +903,7 @@ function resizeCanvas(){
   const canvas=document.getElementById('gameCanvas');
   const ga=document.getElementById('gameArea');
   const cw=ga.clientWidth, ch=ga.clientHeight;
-  const scale=Math.min(cw/LOGICAL_W, ch/LOGICAL_H);
+  const scale=Math.max(cw/LOGICAL_W, ch/LOGICAL_H);
   canvas.width=LOGICAL_W;
   canvas.height=LOGICAL_H;
   canvas.style.width=Math.floor(LOGICAL_W*scale)+'px';
