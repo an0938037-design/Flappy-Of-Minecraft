@@ -625,7 +625,7 @@ class Game {
     else {
       ctx.fillStyle='#333'; ctx.fillRect(0,0,c.width,c.height);
       ctx.fillStyle='#ffd700'; ctx.font='16px monospace'; ctx.textAlign='center';
-      ctx.fillText('['+this.selectedChar+' logo]',c.width/2,45);
+      ctx.fillText('['+this.selectedChar+' logo]',c.width/2,c.height/2+5);
     }
   }
 
@@ -836,9 +836,7 @@ class Game {
   }
 
   updateUI() {
-    document.getElementById('scoreDisplay').textContent=this.score;
-    const scrEl=document.getElementById('score');
-    if(scrEl) scrEl.textContent='Score: '+this.score;
+    document.getElementById('scoreBig').textContent=this.score;
     document.getElementById('highScoreDisplay').textContent=this.highScore;
   }
 
@@ -905,6 +903,7 @@ async function init() {
   game=new Game();
   game.renderLogo();
 
+  document.getElementById('scoreBig').textContent='0';
   document.getElementById('highScoreDisplay').textContent=game.highScore;
 
   window.addEventListener('resize',()=>{resizeCanvas()});
