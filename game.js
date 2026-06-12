@@ -83,26 +83,39 @@ class AssetManager {
     this.ready = false;
   }
 
-  load(src,label,doChroma) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      let done=false;
-      const timer=setTimeout(()=>{if(!done){done=true;console.warn('⏱ Timeout:',src);resolve(null)}},5000);
-      img.onload = () => {
-        if(done) return; done=true; clearTimeout(timer);
-        console.log('✓ Loaded:',src);
-        if(doChroma){
-          try{ resolve(createChromaKeyedImage(img)); return }catch(e){}
-        }
-        resolve(img);
-      };
-      img.onerror = () => {
-        if(done) return; done=true; clearTimeout(timer);
-        console.warn('✗ Failed:',src,label?'– placeholder for '+label:'');
-        resolve(null);
-      };
-      img.src = src;
+  async load(src,label,doChroma) {
+    let imgData=null;
+    try{
+      const cache=await caches.open('fom-assets-v1');
+      let res=await cache.match(src);
+      if(!res){
+        res=await fetch(src);
+        if(res.ok) cache.put(src,res.clone());
+      }
+      if(res&&res.ok) imgData=await res.blob();
+    }catch(e){
+      console.warn('Cache unavailable, falling back to direct load for',src);
+    }
+    if(!imgData){
+      return new Promise((resolve)=>{
+        const i=new Image(); let done=false;
+        const timer=setTimeout(()=>{if(!done){done=true;resolve(null)}},5000);
+        i.onload=()=>{if(done)return;done=true;clearTimeout(timer);resolve(doChroma?createChromaKeyedImage(i):i)};
+        i.onerror=()=>{if(done)return;done=true;clearTimeout(timer);resolve(null)};
+        i.src=src;
+      });
+    }
+    const url=URL.createObjectURL(imgData);
+    const img=await new Promise((resolve)=>{
+      const i=new Image(); let done=false;
+      const timer=setTimeout(()=>{if(!done){done=true;resolve(null)}},5000);
+      i.onload=()=>{if(done)return;done=true;clearTimeout(timer);resolve(i)};
+      i.onerror=()=>{if(done)return;done=true;clearTimeout(timer);resolve(null)};
+      i.src=url;
     });
+    URL.revokeObjectURL(url);
+    if(img&&doChroma){try{return createChromaKeyedImage(img)}catch(e){}}
+    return img;
   }
 
   async init(obstacleFiles,progressCb) {
