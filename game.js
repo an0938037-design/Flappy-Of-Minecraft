@@ -388,7 +388,7 @@ class ObstacleManager {
     switch(data.pos){
       case 'b': y=clamp(groundY-dim.h,0,groundY-dim.h); break;
       case 'm': {
-        const margin=70;
+        const margin=55;
         const minY=margin;
         const maxY=groundY-dim.h-margin;
         let newY;
