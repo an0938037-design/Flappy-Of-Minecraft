@@ -1,7 +1,7 @@
 const ASSETS = 'pjt1/';
 
 const SCROLL_SPEED = 420;
-const SPAWN_GAP = 80;
+const SPAWN_GAP = 200;
 
 const LOGICAL_W = 1000;
 const LOGICAL_H = 600;
