@@ -321,18 +321,13 @@ class Bird {
       try{
         const bbox=assets.crtBBox?assets.crtBBox[charId||'bee']:null;
         if(bbox&&bbox.width>0&&bbox.height>0){
-          const hitW=this.w-16,hitH=this.h-16;
-          if(hitW>0&&hitH>0){
-            const s=Math.min(hitW/bbox.width, hitH/bbox.height);
-            ctx.drawImage(img,-this.w/2*s,-this.h/2*s,this.w*s,this.h*s);
-          } else {
-            ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
-          }
+          const s=Math.min((this.w-16)/bbox.width,(this.h-16)/bbox.height);
+          ctx.drawImage(img,-this.w/2*s,-this.h/2*s,this.w*s,this.h*s);
         } else {
           ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
         }
       }catch(e){
-        ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(0,0,this.w/2,0,Math.PI*2);ctx.fill();
+        ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
       }
     } else {
       ctx.fillStyle='#FFD700'; ctx.beginPath();
