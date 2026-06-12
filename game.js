@@ -358,10 +358,11 @@ class ObstacleManager {
 
   init(canvasW) {
     this.active=[];
+    this.posCycle=0;
   }
 
   spawnNext(canvasW,canvasH) {
-    const pos=this.positions[this.posCycle%3];
+    const pos=this.positions[this.posCycle%this.positions.length];
     this.posCycle++;
     const pool=assets.obstacles.filter(o=>o.img&&o.pos===pos);
     if(!pool.length) return;
