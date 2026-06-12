@@ -340,6 +340,7 @@ class ObstacleManager {
     this.active=[];
     this.posCycle=0;
     this.positions=['b','t','m'];
+    this.lastMidY=undefined;
   }
 
   getScaledDims(img,canvasW,pos,file) {
@@ -386,7 +387,20 @@ class ObstacleManager {
     let y;
     switch(data.pos){
       case 'b': y=clamp(groundY-dim.h,0,groundY-dim.h); break;
-      case 'm': y=canvasH*0.15; break;
+      case 'm': {
+        const margin=30;
+        const minY=margin;
+        const maxY=groundY-dim.h-margin;
+        let newY;
+        if(this.lastMidY!==undefined){
+          do{newY=rand(minY,maxY)}while(Math.abs(newY-this.lastMidY)<80);
+        } else {
+          newY=rand(minY,maxY);
+        }
+        this.lastMidY=newY;
+        y=newY;
+        break;
+      }
       case 't': y=0; break;
     }
 
