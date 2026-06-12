@@ -316,7 +316,10 @@ class Bird {
     ctx.rotate(clamp(this.vy*0.05,-0.3,0.5));
     const img=assets?assets.getCrt(charId||'bee'):null;
     if(img){
-      try{ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h)}catch(e){
+      try{
+        let sz=this.w;
+        if(charId==='parrot'||charId==='bat') sz=50;
+        ctx.drawImage(img,-sz/2,-sz/2,sz,sz)}catch(e){
         ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(0,0,this.w/2,0,Math.PI*2);ctx.fill();
       }
     } else {
