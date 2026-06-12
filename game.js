@@ -360,7 +360,7 @@ class ObstacleManager {
   }
 
   spawnNext(canvasW,canvasH) {
-    const pool=assets.obstacles.filter(o=>o.img);
+    const pool=assets.obstacles.filter(o=>o.img&&o.chapters.includes(game.gameChapter));
     if(!pool.length) return;
     const weighted=[];
     for(const o of pool){
@@ -531,6 +531,7 @@ class Game {
     this.score=0;
     this.highScore=parseInt(localStorage.getItem('fom_highscore')||'0');
     this.currentSpeed=SCROLL_SPEED;
+    this.gameChapter=1;
 
     this.canvas=document.getElementById('gameCanvas');
     this.ctx=this.canvas.getContext('2d');
@@ -664,6 +665,7 @@ class Game {
     this.state='playing';
     this.score=0;
     this.currentSpeed=SCROLL_SPEED;
+    this.gameChapter=1;
 
     this.canvas.width=LOGICAL_W;
     this.canvas.height=LOGICAL_H;
@@ -718,6 +720,8 @@ class Game {
         this.gameOver();
         return;
       }
+
+      if(this.score>=8&&this.gameChapter<2) this.gameChapter=2;
 
       if(!this._villageObs) this._villageObs=new Map();
       let hasActiveVillage=false;
