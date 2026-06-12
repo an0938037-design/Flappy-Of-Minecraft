@@ -18,8 +18,8 @@ const BIG_OBSTACLES = new Set(['bv1-1-o-3.png','bv2-2-a-3.png','bv3-12-a-3.png',
 
 const CHAR_MAP = {
   bee:{ crt:'nvo1.jpg', logo:'logo1.png', label:'BEE' },
-  parrot:{ crt:'nvo2.jpg', logo:'logo2.png', label:'PARROT' },
-  bat:{ crt:'nvo3.jpg', logo:'logo3.png', label:'BAT' }
+  parrot:{ crt:'nvo2.png', logo:'logo3.png', label:'PARROT' },
+  bat:{ crt:'nvo3.png', logo:'logo2.png', label:'BAT' }
 };
 
 const GROUND_FILES = { gs0:'gs0.png', gs1:'gs1.png', dt0:'dt0.png', se0:'se0.png', cl0:'cl0.png', in0:'in0.png' };
@@ -80,6 +80,7 @@ class AssetManager {
   constructor() {
     this.images = {};
     this.obstacles = [];
+    this.crtBBox = {};
     this.ready = false;
   }
 
@@ -127,6 +128,7 @@ class AssetManager {
 
     for (const [ch,map] of Object.entries(CHAR_MAP)) {
       this.images['crt_'+ch] = await this.load(ASSETS + 'crt/' + map.crt,ch+' crt',true);
+      this.crtBBox[ch] = this.images['crt_'+ch] ? computeTightBoundingBox(this.images['crt_'+ch]) : null;
       done(ch+' crt');
       this.images['logo_'+ch] = await this.load(ASSETS + 'logo/' + map.logo,ch+' logo');
       done(ch+' logo');
@@ -316,7 +318,20 @@ class Bird {
     ctx.rotate(clamp(this.vy*0.05,-0.3,0.5));
     const img=assets?assets.getCrt(charId||'bee'):null;
     if(img){
-      try{ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h)}catch(e){
+      try{
+        const bbox=assets.crtBBox?assets.crtBBox[charId||'bee']:null;
+        if(bbox&&bbox.width>0&&bbox.height>0){
+          const ref=assets.crtBBox?assets.crtBBox['bee']:null;
+          if(ref&&ref.width>0&&ref.height>0){
+            const s=Math.min(ref.width/bbox.width,ref.height/bbox.height);
+            ctx.drawImage(img,-this.w/2*s,-this.h/2*s,this.w*s,this.h*s);
+          } else {
+            ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
+          }
+        } else {
+          ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
+        }
+      }catch(e){
         ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(0,0,this.w/2,0,Math.PI*2);ctx.fill();
       }
     } else {
