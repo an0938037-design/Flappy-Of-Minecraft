@@ -321,10 +321,9 @@ class Bird {
       try{
         const bbox=assets.crtBBox?assets.crtBBox[charId||'bee']:null;
         if(bbox&&bbox.width>0&&bbox.height>0){
-          const ref=assets.crtBBox?assets.crtBBox['bee']:null;
-          if(ref&&ref.width>0&&ref.height>0){
-            let s=Math.min(ref.width/bbox.width,ref.height/bbox.height);
-            if(charId==='parrot'||charId==='bat') s*=3;
+          const hitW=this.w-16,hitH=this.h-16;
+          if(hitW>0&&hitH>0){
+            const s=Math.min(hitW/bbox.width, hitH/bbox.height);
             ctx.drawImage(img,-this.w/2*s,-this.h/2*s,this.w*s,this.h*s);
           } else {
             ctx.drawImage(img,-this.w/2,-this.h/2,this.w,this.h);
