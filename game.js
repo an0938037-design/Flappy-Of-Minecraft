@@ -339,7 +339,7 @@ class ObstacleManager {
   constructor() {
     this.active=[];
     this.posCycle=0;
-    this.positions=['b','t','m'];
+    this.positions=['b','t','m','t','b'];
     this.lastMidY=undefined;
   }
 
