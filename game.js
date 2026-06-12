@@ -338,7 +338,8 @@ class Bird {
 class ObstacleManager {
   constructor() {
     this.active=[];
-    this.nextSpawnX=0;
+    this.posCycle=0;
+    this.positions=['b','t','m'];
   }
 
   getScaledDims(img,canvasW,pos,file) {
@@ -359,7 +360,9 @@ class ObstacleManager {
   }
 
   spawnNext(canvasW,canvasH) {
-    const pool=assets.obstacles.filter(o=>o.img);
+    const pos=this.positions[this.posCycle%3];
+    this.posCycle++;
+    const pool=assets.obstacles.filter(o=>o.img&&o.pos===pos);
     if(!pool.length) return;
     const weighted=[];
     for(const o of pool){
@@ -383,7 +386,7 @@ class ObstacleManager {
     let y;
     switch(data.pos){
       case 'b': y=clamp(groundY-dim.h,0,groundY-dim.h); break;
-      case 'm': y=canvasH*0.35; break;
+      case 'm': y=canvasH*0.15; break;
       case 't': y=0; break;
     }
 
