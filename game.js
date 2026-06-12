@@ -551,6 +551,7 @@ class Game {
     this.score=0;
     this.highScore=parseInt(localStorage.getItem('fom_highscore')||'0');
     this.currentSpeed=SCROLL_SPEED;
+    this.lastSpeedUpScore=0;
 
     this.canvas=document.getElementById('gameCanvas');
     this.ctx=this.canvas.getContext('2d');
@@ -684,6 +685,7 @@ class Game {
     this.state='playing';
     this.score=0;
     this.currentSpeed=SCROLL_SPEED;
+    this.lastSpeedUpScore=0;
 
     this.canvas.width=LOGICAL_W;
     this.canvas.height=LOGICAL_H;
@@ -729,6 +731,11 @@ class Game {
       }
 
       this.score+=this.obstacles.getPassed(this.bird.x);
+
+      if(this.score-this.lastSpeedUpScore>=5){
+        this.currentSpeed*=1.05;
+        this.lastSpeedUpScore+=5;
+      }
 
       const bb=this.bird.getBounds();
       const hitObs=this.obstacles.checkCollision(bb);
