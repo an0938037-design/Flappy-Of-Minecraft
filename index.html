@@ -1,59 +1,1275 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Flappy Of Minecraft</title>
-<link rel="stylesheet" href="style.css">
+<title>MaJc Tiles</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #111;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
+}
+canvas#gameCanvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: #1a1a2e;
+}
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: rgba(10,10,26,0.95);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+.screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.96);
+}
+h1 {
+  font-size: 64px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 40px rgba(255,107,107,0.3));
+  margin-bottom: 4px;
+  letter-spacing: 2px;
+}
+.subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 32px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+.file-input-wrapper {
+  position: relative;
+  margin: 16px 0;
+}
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-input-label {
+  display: inline-block;
+  padding: 14px 36px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 2px dashed rgba(255,255,255,0.25);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.file-input-label:hover {
+  border-color: #ffd93d;
+  color: #ffd93d;
+  background: rgba(255,217,61,0.05);
+}
+.file-input-label.has-file {
+  border-color: #6bcb77;
+  color: #6bcb77;
+  border-style: solid;
+}
+.btn {
+  padding: 14px 44px;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 6px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #6bcb77, #4d96ff);
+  color: #fff;
+  box-shadow: 0 0 30px rgba(107,203,119,0.3);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 50px rgba(107,203,119,0.5);
+}
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-secondary {
+  background: transparent;
+  color: #ffd93d;
+  border: 2px solid #ffd93d;
+}
+.btn-secondary:hover {
+  background: rgba(255,217,61,0.1);
+}
+.loading-spinner {
+  width: 50px; height: 50px;
+  border: 4px solid rgba(255,255,255,0.08);
+  border-top: 4px solid #6bcb77;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+}
+.loading-progress {
+  width: 280px; height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+.loading-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff);
+  border-radius: 2px;
+  transition: width 0.2s;
+}
+.calibration-box {
+  text-align: center;
+  max-width: 420px;
+}
+.calibration-box h2 {
+  font-size: 22px;
+  color: #ffd93d;
+  margin-bottom: 8px;
+}
+.calibration-camera {
+  width: 320px; height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 12px auto;
+  background: #000;
+  border: 2px solid rgba(255,255,255,0.08);
+  position: relative;
+}
+.calibration-camera video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.calibration-status {
+  font-size: 13px;
+  margin: 8px 0;
+  color: rgba(255,255,255,0.5);
+}
+.calibration-status .ready { color: #6bcb77; }
+.calibration-status .waiting { color: #ffd93d; }
+.calibration-status .error { color: #ff6b6b; }
+
+/* Game Over */
+.game-over-title {
+  font-size: 42px;
+  font-weight: 900;
+  color: #ff6b6b;
+  text-shadow: 0 0 40px rgba(255,107,107,0.5);
+  margin-bottom: 4px;
+}
+.game-over-score {
+  font-size: 60px;
+  font-weight: 900;
+  color: #ffd93d;
+  text-shadow: 0 0 30px rgba(255,217,61,0.4);
+}
+.game-over-stat {
+  font-size: 15px;
+  color: rgba(255,255,255,0.5);
+  margin: 2px 0;
+}
+.game-over-stat strong { color: #fff; }
+
+/* Camera preview */
+#cameraPreview {
+  position: fixed;
+  bottom: 16px; right: 16px;
+  width: 160px; height: 120px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.08);
+  z-index: 5;
+  background: #000;
+  display: none;
+}
+#cameraPreview video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+#cameraPreview canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  transform: scaleX(-1);
+}
+.camera-label {
+  position: absolute;
+  bottom: 3px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Lane indicator */
+#laneIndicator {
+  position: fixed;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 12px;
+  z-index: 5;
+}
+.lane-dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.1);
+  transition: all 0.1s;
+}
+.lane-dot.active {
+  background: #ffd93d;
+  border-color: #ffd93d;
+  box-shadow: 0 0 20px rgba(255,217,61,0.6);
+  transform: scale(1.2);
+}
+.lane-dot.tapped {
+  background: #6bcb77;
+  border-color: #6bcb77;
+  box-shadow: 0 0 30px rgba(107,203,119,0.8);
+  transform: scale(1.4);
+}
+</style>
 </head>
 <body>
-<div id="mainContainer">
-  <div id="gameArea">
-    <canvas id="gameCanvas"></canvas>
-    <div id="ui">
-      <div id="chapterText"></div>
-      <div id="score">Score: 0</div>
-      <div id="gameOver">Game Over<br><small>Click/Tap to restart</small></div>
-    </div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="cameraPreview">
+  <video id="previewVideo" autoplay playsinline></video>
+  <canvas id="previewOverlay"></canvas>
+  <div class="camera-label">CAMERA</div>
+</div>
+
+<div id="laneIndicator" class="lane-indicator"></div>
+
+<div id="menuScreen" class="screen">
+  <h1>MaJc Tiles</h1>
+  <div class="subtitle">Magic Tiles 3 Clone</div>
+  <div class="file-input-wrapper">
+    <input type="file" id="musicFileInput" accept="audio/*">
+    <label class="file-input-label" id="fileInputLabel">Chọn file nhạc (MP3 / WAV / FLAC)</label>
   </div>
-  <div id="controlArea">
-    <h1 class="game-title">FLAPPY OF<br>MINECRAFT</h1>
-    <canvas id="logoCanvas" width="200" height="80"></canvas>
-    <div id="char-select">
-      <button class="char-btn active" data-char="bee">BEE</button>
-      <button class="char-btn" data-char="parrot">PARROT</button>
-      <button class="char-btn" data-char="bat">BAT</button>
-    </div>
-    <button id="playBtn">▶ PLAY</button>
-    <div id="webcam-area" style="display:none">
-      <video id="webcamVideo" playsinline style="display:none"></video>
-      <canvas id="webcamCanvas"></canvas>
-    </div>
-    <div id="stats">
-      <div class="stat-row"><span class="stat-label">Score</span><span class="stat-value" id="scoreDisplay">0</span></div>
-      <div class="stat-row"><span class="stat-label">Best</span><span class="stat-value" id="highScoreDisplay">0</span></div>
-    </div>
-    <button class="ctrl-btn" id="btnRestart">↻ CHƠI LẠI</button>
-    <button class="ctrl-btn" id="btnFullscreen">⛶ TOÀN MÀN HÌNH</button>
+  <button class="btn btn-primary" id="startBtn" disabled>Start Game</button>
+  <div style="margin-top:12px;color:rgba(255,255,255,0.3);font-size:12px;text-align:center;max-width:360px;line-height:1.7;">
+    <strong style="color:rgba(255,255,255,0.6);">Camera:</strong> Di chuyển tay trái/phải chọn làn, búng ngón trỏ để nhấn nốt.<br>
+    <span style="color:rgba(255,255,255,0.15);">Phím: 1 2 3 4</span>
   </div>
 </div>
 
-<video id="inputVideo" autoplay playsinline muted></video>
-<div id="loadingOverlay">
-  <div style="font-size:clamp(14px,2vw,24px);margin-bottom:12px">Loading Assets...</div>
-  <div id="loadPct" style="font-size:clamp(28px,5vw,48px);font-weight:bold">0%</div>
-  <div style="margin-top:12px;width:clamp(120px,20vw,240px);height:8px;background:#333;border-radius:4px;overflow:hidden">
-    <div id="loadBar" style="width:0%;height:100%;background:#ffd700;border-radius:4px;transition:width 0.2s"></div>
+<div id="loadingScreen" class="screen hidden">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Đang phân tích nhạc...</div>
+  <div class="loading-progress">
+    <div class="loading-progress-bar" id="loadingBar"></div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<div id="calibrationScreen" class="screen hidden">
+  <div class="calibration-box">
+    <h2>Camera Calibration</h2>
+    <p style="color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:8px;">
+      Đưa tay vào khung hình, búng ngón trỏ để kiểm tra
+    </p>
+    <div class="calibration-camera">
+      <video id="calibrationVideo" autoplay playsinline></video>
+    </div>
+    <div class="calibration-status" id="calibrationStatus">
+      <span class="waiting">Đang chờ camera...</span>
+    </div>
+    <button class="btn btn-primary" id="calibrationReadyBtn" disabled>Sẵn sàng!</button>
+    <div style="margin-top:6px;">
+      <button class="btn btn-secondary" id="calibrationSkipBtn" style="padding:6px 22px;font-size:13px;">Bỏ qua (dùng phím)</button>
+    </div>
+  </div>
+</div>
+
+<div id="gameOverScreen" class="screen hidden">
+  <div class="game-over-title">GAME OVER</div>
+  <div class="game-over-score" id="finalScore">0</div>
+  <div class="game-over-stat">Combo cao nhất: <strong id="finalCombo">0</strong>x</div>
+  <div class="game-over-stat">Độ chính xác: <strong id="finalAccuracy">0%</strong></div>
+  <div class="game-over-stat">Perfect / Good / Miss: <strong id="finalStats">0 / 0 / 0</strong></div>
+  <div style="margin-top:16px;">
+    <button class="btn btn-primary" id="replayBtn">Chơi lại</button>
+    <button class="btn btn-secondary" id="menuBtn">Chọn nhạc khác</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+
 <script>
-window._loadingPct=function(p){var el=document.getElementById('loadPct');if(el)el.textContent=p+'%';var bar=document.getElementById('loadBar');if(bar)bar.style.width=p+'%';if(p>=100)setTimeout(function(){var o=document.getElementById('loadingOverlay');if(o){o.style.opacity='0';setTimeout(function(){if(o.parentNode)o.parentNode.removeChild(o)},500)}},400)};
+(function() {
+'use strict';
+
+// ============================================================
+// CONFIG
+// ============================================================
+const CONFIG = {
+  lanes: 4,
+  scrollSpeed: 320,
+  hitZoneY: 0.8,
+  perfectWindow: 0.08,
+  goodWindow: 0.16,
+  missWindow: 0.22,
+  maxLives: 5,
+  perfectScore: 300,
+  goodScore: 100,
+  comboMultiplier: 1.5,
+  noteWidth: 0.7,
+  noteHeight: 44,
+  tapCooldown: 0.15,
+  minBeatInterval: 0.15,
+  beatThresholdMultiplier: 1.6,
+  frameSize: 2048,
+  hopSize: 1024,
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  screen: 'menu',
+  audioBuffer: null,
+  beats: [],
+  notes: [],
+  audioContext: null,
+  audioSource: null,
+  isPlaying: false,
+  startTime: 0,
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  lives: CONFIG.maxLives,
+  totalNotes: 0,
+  hitNotes: 0,
+  perfects: 0,
+  goods: 0,
+  misses: 0,
+  gameStatus: 'idle',
+  cameraMode: false,
+  handX: 0.5,
+  handY: 0.5,
+  fingerCurled: true,
+  prevFingerCurled: true,
+  tapTriggered: false,
+  lastTapTime: 0,
+  selectedLane: -1,
+  keysPressed: { '1': false, '2': false, '3': false, '4': false },
+  prevKeyState: { '1': false, '2': false, '3': false, '4': false },
+  frameCount: 0,
+  processedNotes: new Set(),
+  nextNoteIndex: 0,
+};
+
+// ============================================================
+// DOM REFS
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const previewOverlay = document.getElementById('previewOverlay');
+const previewCtx = previewOverlay.getContext('2d');
+const menuScreen = document.getElementById('menuScreen');
+const loadingScreen = document.getElementById('loadingScreen');
+const calibrationScreen = document.getElementById('calibrationScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const musicFileInput = document.getElementById('musicFileInput');
+const fileInputLabel = document.getElementById('fileInputLabel');
+const startBtn = document.getElementById('startBtn');
+const loadingBar = document.getElementById('loadingBar');
+const calibrationStatus = document.getElementById('calibrationStatus');
+const calibrationReadyBtn = document.getElementById('calibrationReadyBtn');
+const calibrationSkipBtn = document.getElementById('calibrationSkipBtn');
+const finalScore = document.getElementById('finalScore');
+const finalCombo = document.getElementById('finalCombo');
+const finalAccuracy = document.getElementById('finalAccuracy');
+const finalStats = document.getElementById('finalStats');
+const replayBtn = document.getElementById('replayBtn');
+const menuBtn = document.getElementById('menuBtn');
+const previewVideo = document.getElementById('previewVideo');
+const calibrationVideo = document.getElementById('calibrationVideo');
+const cameraPreview = document.getElementById('cameraPreview');
+const laneIndicator = document.getElementById('laneIndicator');
+
+// ============================================================
+// CANVAS
+// ============================================================
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  previewOverlay.width = 160;
+  previewOverlay.height = 120;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Build lane indicator dots
+for (let i = 0; i < CONFIG.lanes; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'lane-dot';
+  dot.dataset.lane = i;
+  laneIndicator.appendChild(dot);
+}
+
+// ============================================================
+// BEAT DETECTION (optimized)
+// ============================================================
+function detectBeats(audioBuffer) {
+  const channelData = audioBuffer.getChannelData(0);
+  const sampleRate = audioBuffer.sampleRate;
+  const fs = CONFIG.frameSize;
+  const hs = CONFIG.hopSize;
+  const numFrames = Math.max(1, Math.floor((channelData.length - fs) / hs));
+
+  const energies = new Float32Array(numFrames);
+  for (let i = 0; i < numFrames; i++) {
+    const off = i * hs;
+    let sum = 0;
+    for (let j = 0; j < fs; j++) {
+      const s = channelData[off + j];
+      sum += s * s;
+    }
+    energies[i] = Math.sqrt(sum / fs);
+  }
+
+  const onset = new Float32Array(numFrames);
+  for (let i = 1; i < numFrames; i++) {
+    onset[i] = Math.max(0, energies[i] - energies[i - 1]);
+  }
+
+  let sum = 0, cnt = 0;
+  for (let i = 0; i < numFrames; i++) {
+    if (onset[i] > 0) { sum += onset[i]; cnt++; }
+  }
+  const mean = cnt > 0 ? sum / cnt : 0;
+  let varSum = 0;
+  for (let i = 0; i < numFrames; i++) {
+    const d = onset[i] - mean;
+    varSum += d * d;
+  }
+  const std = Math.sqrt(varSum / numFrames);
+  const threshold = mean + CONFIG.beatThresholdMultiplier * Math.max(std, 0.001);
+
+  const beats = [];
+  const minFrames = Math.floor(CONFIG.minBeatInterval * sampleRate / hs);
+  let lastBeat = -minFrames;
+
+  for (let i = 1; i < numFrames - 1; i++) {
+    if (onset[i] > threshold &&
+        onset[i] >= onset[i - 1] &&
+        onset[i] > onset[i + 1] &&
+        (i - lastBeat) >= minFrames) {
+      beats.push((i * hs) / sampleRate);
+      lastBeat = i;
+    }
+  }
+
+  if (beats.length < 5) {
+    const fallback = [];
+    const dur = audioBuffer.duration;
+    const interval = 60 / 130;
+    for (let t = interval; t < dur - 0.5; t += interval) {
+      fallback.push(t);
+    }
+    return fallback;
+  }
+  return beats;
+}
+
+// ============================================================
+// NOTE GENERATION
+// ============================================================
+function generateNotes(beats) {
+  const notes = [];
+  let lastLane = -1;
+  let repeatCount = 0;
+
+  for (let i = 0; i < beats.length; i++) {
+    let lane;
+    do {
+      lane = Math.floor(Math.random() * CONFIG.lanes);
+    } while (lane === lastLane && repeatCount >= 2);
+
+    if (lane === lastLane) {
+      repeatCount++;
+    } else {
+      repeatCount = 0;
+    }
+    lastLane = lane;
+
+    notes.push({
+      time: beats[i],
+      lane,
+      hit: false,
+      result: null,
+    });
+  }
+  return notes;
+}
+
+// ============================================================
+// AUDIO
+// ============================================================
+let audioContext = null;
+
+function getAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+async function loadAndAnalyzeMusic(file) {
+  const ab = await file.arrayBuffer();
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') await ctx.resume();
+  const audioBuffer = await ctx.decodeAudioData(ab);
+
+  const total = Math.floor(audioBuffer.length / CONFIG.hopSize);
+  let prog = 0;
+  const progInterval = setInterval(() => {
+    prog = Math.min(prog + 2, total);
+    loadingBar.style.width = Math.min(100, (prog / total) * 100) + '%';
+  }, 30);
+
+  const beats = await new Promise(r => {
+    setTimeout(() => {
+      const result = detectBeats(audioBuffer);
+      r(result);
+    }, 10);
+  });
+
+  clearInterval(progInterval);
+  loadingBar.style.width = '100%';
+
+  const notes = generateNotes(beats);
+  return { audioBuffer, beats, notes };
+}
+
+function startAudio(buffer, offset) {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume();
+  if (state.audioSource) {
+    try { state.audioSource.stop(); } catch (e) {}
+    state.audioSource.disconnect();
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(ctx.destination);
+  src.start(0, offset);
+  state.audioSource = src;
+  state.startTime = ctx.currentTime - offset;
+  state.isPlaying = true;
+}
+
+function stopAudio() {
+  if (state.audioSource) {
+    try { state.audioSource.stop(); } catch (e) {}
+    try { state.audioSource.disconnect(); } catch (e) {}
+    state.audioSource = null;
+  }
+  state.isPlaying = false;
+}
+
+function getTime() {
+  if (!audioContext || !state.isPlaying) return 0;
+  return audioContext.currentTime - state.startTime;
+}
+
+// ============================================================
+// CAMERA + HAND TRACKING
+// ============================================================
+let hands = null;
+let camera = null;
+let cameraStream = null;
+
+function stopCamera() {
+  if (camera) { try { camera.stop(); } catch (e) {} camera = null; }
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  hands = null;
+  cameraPreview.style.display = 'none';
+}
+
+async function initCamera(videoEl, callback) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 320, height: 240, facingMode: 'user', frameRate: 30 }
+    });
+    videoEl.srcObject = stream;
+    cameraStream = stream;
+    await videoEl.play();
+
+    hands = new Hands({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`
+    });
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 0,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.4,
+    });
+
+    hands.onResults(results => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const lm = results.multiHandLandmarks[0];
+        const wrist = lm[0];
+        const idxTip = lm[8];
+        const idxMcp = lm[5];
+        const midMcp = lm[9];
+
+        state.handX = Math.max(0, Math.min(1, idxTip ? idxTip.x : wrist.x));
+        state.handY = Math.max(0, Math.min(1, idxTip ? idxTip.y : wrist.y));
+
+        const dx = idxTip.x - idxMcp.x;
+        const dy = idxTip.y - idxMcp.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const handSize = Math.sqrt(
+          (midMcp.x - wrist.x) ** 2 + (midMcp.y - wrist.y) ** 2
+        );
+        const normDist = dist / Math.max(handSize, 0.01);
+        state.fingerCurled = normDist < 0.4;
+
+        if (callback) callback(results);
+
+        // Preview overlay
+        previewOverlay.width = previewOverlay.clientWidth || 160;
+        previewOverlay.height = previewOverlay.clientHeight || 120;
+        const pctx = previewCtx;
+        pctx.clearRect(0, 0, previewOverlay.width, previewOverlay.height);
+        drawConnectors(pctx, lm, HAND_CONNECTIONS, { color: '#6bcb77', lineWidth: 1.5 });
+        for (const p of lm) {
+          pctx.beginPath();
+          pctx.arc(p.x * previewOverlay.width, p.y * previewOverlay.height, 3, 0, Math.PI * 2);
+          pctx.fillStyle = '#ffd93d';
+          pctx.fill();
+        }
+
+        // Draw fingertip circle for tap feedback
+        const tx = idxTip.x * previewOverlay.width;
+        const ty = idxTip.y * previewOverlay.height;
+        pctx.beginPath();
+        pctx.arc(tx, ty, 6, 0, Math.PI * 2);
+        pctx.strokeStyle = state.fingerCurled ? '#ff6b6b' : '#6bcb77';
+        pctx.lineWidth = 2;
+        pctx.stroke();
+      } else {
+        state.handDetected = false;
+        state.fingerCurled = true;
+      }
+    });
+
+    camera = new Camera(videoEl, {
+      onFrame: async () => {
+        try { await hands.send({ image: videoEl }); } catch (e) {}
+      },
+      width: 320,
+      height: 240,
+    });
+    camera.start().catch(() => {});
+
+    return true;
+  } catch (err) {
+    console.warn('Camera fail:', err);
+    return false;
+  }
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+let hitEffects = [];
+
+function handleTap(lane) {
+  const now = getTime();
+  if (now - state.lastTapTime < CONFIG.tapCooldown) return;
+  state.lastTapTime = now;
+
+  // Find closest unhit note in this lane
+  let best = null;
+  let bestDiff = Infinity;
+  for (const note of state.notes) {
+    if (note.hit) continue;
+    if (note.lane !== lane) continue;
+    const diff = Math.abs(now - note.time);
+    if (diff < bestDiff && diff < CONFIG.missWindow) {
+      best = note;
+      bestDiff = diff;
+    }
+  }
+
+  if (best) {
+    best.hit = true;
+    if (bestDiff <= CONFIG.perfectWindow) {
+      best.result = 'perfect';
+      state.perfects++;
+      const mult = 1 + (state.combo) * (CONFIG.comboMultiplier - 1);
+      state.score += Math.round(CONFIG.perfectScore * mult);
+      state.combo++;
+      if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+    } else {
+      best.result = 'good';
+      state.goods++;
+      const mult = 1 + (state.combo) * (CONFIG.comboMultiplier - 1);
+      state.score += Math.round(CONFIG.goodScore * mult);
+      state.combo++;
+      if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+    }
+    state.hitNotes++;
+
+    // Hit effect
+    hitEffects.push({ lane, time: 1, perfect: bestDiff <= CONFIG.perfectWindow });
+
+    // Lane indicator feedback
+    const dots = laneIndicator.querySelectorAll('.lane-dot');
+    dots[lane].classList.add('tapped');
+    setTimeout(() => dots[lane].classList.remove('tapped'), 150);
+  }
+}
+
+function updateGame(dt) {
+  if (state.gameStatus !== 'playing' || !state.isPlaying) return;
+
+  const now = getTime();
+
+  // Process notes - auto-miss expired notes
+  for (const note of state.notes) {
+    if (note.hit) continue;
+    if (now - note.time > CONFIG.missWindow) {
+      note.hit = true;
+      note.result = 'miss';
+      state.misses++;
+      state.combo = 0;
+      state.lives--;
+      if (state.lives <= 0) {
+        state.gameStatus = 'gameover';
+        stopAudio();
+        showGameOver();
+        return;
+      }
+    }
+  }
+
+  // Camera tap detection
+  if (state.cameraMode) {
+    const lane = Math.min(CONFIG.lanes - 1, Math.floor(state.handX * CONFIG.lanes));
+    state.selectedLane = lane;
+
+    // Detect transition: curled -> uncurled = tap
+    if (!state.fingerCurled && state.prevFingerCurled) {
+      handleTap(lane);
+    }
+    state.prevFingerCurled = state.fingerCurled;
+
+    // Update lane indicator dots
+    const dots = laneIndicator.querySelectorAll('.lane-dot');
+    dots.forEach((d, i) => {
+      d.classList.toggle('active', i === lane && !state.fingerCurled);
+    });
+  }
+
+  // Keyboard tap detection
+  for (const key of ['1', '2', '3', '4']) {
+    const pressed = state.keysPressed[key];
+    const wasPressed = state.prevKeyState[key];
+    if (pressed && !wasPressed) {
+      handleTap(parseInt(key) - 1);
+    }
+    state.prevKeyState[key] = pressed;
+  }
+
+  // Update hit effects
+  for (let i = hitEffects.length - 1; i >= 0; i--) {
+    hitEffects[i].time -= dt;
+    if (hitEffects[i].time <= 0) hitEffects.splice(i, 1);
+  }
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  const W = canvas.width;
+  const H = canvas.height;
+  const now = getTime();
+  const laneW = W / CONFIG.lanes;
+  const hitY = H * CONFIG.hitZoneY;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1a2e');
+  grad.addColorStop(0.5, '#16213e');
+  grad.addColorStop(1, '#0f0f23');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  for (let i = 1; i < CONFIG.lanes; i++) {
+    const x = i * laneW;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+
+  // Hit zone line
+  ctx.save();
+  ctx.shadowColor = '#ffd93d';
+  ctx.shadowBlur = 15;
+  ctx.strokeStyle = 'rgba(255,217,61,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, hitY);
+  ctx.lineTo(W, hitY);
+  ctx.stroke();
+
+  // Hit zone glow
+  const hzGrad = ctx.createLinearGradient(0, hitY - 30, 0, hitY + 10);
+  hzGrad.addColorStop(0, 'rgba(255,217,61,0)');
+  hzGrad.addColorStop(0.5, 'rgba(255,217,61,0.06)');
+  hzGrad.addColorStop(1, 'rgba(255,217,61,0)');
+  ctx.fillStyle = hzGrad;
+  ctx.fillRect(0, hitY - 30, W, 40);
+  ctx.restore();
+
+  // Lane highlights for camera mode
+  if (state.cameraMode && state.selectedLane >= 0) {
+    const lx = state.selectedLane * laneW;
+    ctx.fillStyle = state.fingerCurled
+      ? 'rgba(255,107,107,0.06)'
+      : 'rgba(107,203,119,0.10)';
+    ctx.fillRect(lx, 0, laneW, H);
+  }
+
+  // Draw notes
+  for (const note of state.notes) {
+    if (note.hit) continue;
+    const diff = note.time - now;
+    if (diff < -CONFIG.missWindow) continue;
+    if (diff > 2) continue;
+
+    const y = hitY + diff * CONFIG.scrollSpeed;
+    if (y < -CONFIG.noteHeight || y > H + CONFIG.noteHeight) continue;
+
+    const x = note.lane * laneW + laneW / 2;
+    const nw = laneW * CONFIG.noteWidth;
+    const nh = CONFIG.noteHeight;
+
+    ctx.save();
+    const nearHit = Math.abs(diff) < CONFIG.missWindow;
+    const approaching = diff > 0;
+
+    if (nearHit && approaching) {
+      ctx.shadowColor = '#ffd93d';
+      ctx.shadowBlur = 20 + (1 - diff / CONFIG.missWindow) * 20;
+      ctx.fillStyle = '#ffd93d';
+    } else if (nearHit && !approaching) {
+      ctx.shadowColor = '#ff6b6b';
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = '#ff6b6b';
+    } else {
+      ctx.shadowColor = 'rgba(255,255,255,0.1)';
+      ctx.shadowBlur = 5;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    }
+
+    const rx = x - nw / 2;
+    const ry = y - nh / 2;
+
+    ctx.beginPath();
+    ctx.roundRect(rx, ry, nw, nh, 6);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Hit zone indicators at lanes
+  for (let i = 0; i < CONFIG.lanes; i++) {
+    const x = i * laneW + laneW / 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath();
+    ctx.arc(x, hitY, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hit effects
+  for (const fx of hitEffects) {
+    const x = fx.lane * laneW + laneW / 2;
+    const alpha = fx.time;
+    const r = 20 + (1 - alpha) * 40;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = fx.perfect ? '#ffd93d' : '#6bcb77';
+    ctx.shadowColor = fx.perfect ? '#ffd93d' : '#6bcb77';
+    ctx.shadowBlur = 20;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, hitY, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // HUD
+  ctx.save();
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 32px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.shadowColor = '#ffd93d';
+  ctx.shadowBlur = 10;
+  ctx.fillText(Math.floor(state.score).toLocaleString(), 24, 50);
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE', 24, 68);
+
+  // Combo
+  if (state.combo > 1) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd93d';
+    ctx.shadowColor = '#ffd93d';
+    ctx.shadowBlur = 25;
+    ctx.font = `bold ${26}px "Segoe UI", system-ui, sans-serif`;
+    ctx.fillText(`${state.combo}x`, W / 2, 50);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,217,61,0.3)';
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('COMBO', W / 2, 68);
+  }
+
+  // Lives (hearts on right)
+  for (let i = 0; i < CONFIG.maxLives; i++) {
+    const lx = W - 24 - i * 28;
+    ctx.shadowBlur = i < state.lives ? 12 : 0;
+    ctx.shadowColor = '#ff6b6b';
+    ctx.fillStyle = i < state.lives ? '#ff6b6b' : 'rgba(255,107,107,0.12)';
+    ctx.beginPath();
+    ctx.arc(lx, 36, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // Progress bar
+  if (state.notes.length > 0) {
+    const p = Math.min(1, state.hitNotes / state.notes.length);
+    const bx = 24, by = H - 24, bw = W - 48, bh = 3;
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = 'rgba(255,217,61,0.25)';
+    ctx.fillRect(bx, by, bw * p, bh);
+  }
+
+  // Camera/Keys indicator
+  if (state.cameraMode) {
+    ctx.fillStyle = state.fingerCurled ? 'rgba(255,107,107,0.3)' : 'rgba(107,203,119,0.3)';
+    ctx.font = '9px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(state.fingerCurled ? 'CAM \u25CF' : 'CAM \u25C9', 24, H - 40);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '9px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('KEYS: 1 2 3 4', 24, H - 40);
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+let lastTime = 0;
+
+function gameLoop(time) {
+  const dt = Math.min(0.05, (time - lastTime) / 1000);
+  lastTime = time;
+
+  updateGame(dt);
+  render();
+
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+
+// ============================================================
+// UI
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function showLoading() {
+  showScreen('loadingScreen');
+  loadingBar.style.width = '0%';
+}
+
+function showCalibration() {
+  showScreen('calibrationScreen');
+  calibrationReadyBtn.disabled = true;
+  calibrationStatus.innerHTML = '<span class="waiting">Đang chờ camera...</span>';
+  initCalibrationCamera();
+}
+
+function showGame() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  state.gameStatus = 'playing';
+  if (state.cameraMode) {
+    cameraPreview.style.display = 'block';
+    laneIndicator.style.display = 'flex';
+  }
+  resizeCanvas();
+}
+
+function showGameOver() {
+  state.gameStatus = 'gameover';
+  finalScore.textContent = Math.floor(state.score).toLocaleString();
+  finalCombo.textContent = state.maxCombo;
+  const total = state.perfects + state.goods + state.misses;
+  const acc = total > 0 ? Math.round((state.perfects + state.goods) / total * 100) : 0;
+  finalAccuracy.textContent = acc + '%';
+  finalStats.textContent = `${state.perfects} / ${state.goods} / ${state.misses}`;
+  showScreen('gameOverScreen');
+  stopCamera();
+  laneIndicator.style.display = 'none';
+  cameraPreview.style.display = 'none';
+}
+
+function showMenu() {
+  showScreen('menuScreen');
+  state.gameStatus = 'idle';
+  state.notes = [];
+  state.score = 0;
+  state.combo = 0;
+  state.maxCombo = 0;
+  state.lives = CONFIG.maxLives;
+  state.perfects = 0;
+  state.goods = 0;
+  state.misses = 0;
+  state.hitNotes = 0;
+  state.isPlaying = false;
+  state.audioBuffer = null;
+  state.selectedLane = -1;
+  state.nextNoteIndex = 0;
+  state.processedNotes = new Set();
+  loadingBar.style.width = '0%';
+  stopAudio();
+  stopCamera();
+  state.cameraMode = false;
+  state.fingerCurled = true;
+  state.prevFingerCurled = true;
+  state.keysPressed = { '1': false, '2': false, '3': false, '4': false };
+  state.prevKeyState = { '1': false, '2': false, '3': false, '4': false };
+  hitEffects = [];
+  laneIndicator.style.display = 'none';
+  cameraPreview.style.display = 'none';
+}
+
+// ============================================================
+// FILE INPUT
+// ============================================================
+musicFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  fileInputLabel.textContent = file.name;
+  fileInputLabel.classList.add('has-file');
+  startBtn.disabled = true;
+  startBtn.textContent = 'Analyzing...';
+  showLoading();
+
+  try {
+    const result = await loadAndAnalyzeMusic(file);
+    state.audioBuffer = result.audioBuffer;
+    state.beats = result.beats;
+    state.notes = result.notes;
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start Game';
+    showScreen('menuScreen');
+  } catch (err) {
+    console.error('Analysis failed:', err);
+    startBtn.textContent = 'Failed - Try Again';
+    showScreen('menuScreen');
+  }
+});
+
+// ============================================================
+// START
+// ============================================================
+startBtn.addEventListener('click', () => {
+  if (!state.audioBuffer || state.notes.length === 0) return;
+  showCalibration();
+});
+
+// ============================================================
+// CALIBRATION
+// ============================================================
+async function initCalibrationCamera() {
+  calibrationReadyBtn.disabled = true;
+  calibrationStatus.innerHTML = '<span class="waiting">Đang xin quyền camera...</span>';
+
+  const ok = await initCamera(calibrationVideo, (results) => {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+      calibrationReadyBtn.disabled = false;
+      calibrationStatus.innerHTML =
+        '<span class="ready">Đã phát hiện tay! Búng ngón trỏ để kiểm tra. Nhấn "Sẵn sàng!" để bắt đầu.</span>';
+    } else {
+      calibrationReadyBtn.disabled = true;
+      calibrationStatus.innerHTML = '<span class="waiting">Đưa tay vào khung hình...</span>';
+    }
+  });
+
+  if (!ok) {
+    calibrationStatus.innerHTML =
+      '<span class="error">Không tìm thấy camera. Dùng phím 1 2 3 4 để chơi.</span>';
+    calibrationReadyBtn.disabled = false;
+    calibrationReadyBtn.textContent = 'Tiếp tục (không camera)';
+    state.cameraMode = false;
+  } else {
+    state.cameraMode = true;
+    calibrationReadyBtn.textContent = 'Sẵn sàng!';
+  }
+}
+
+calibrationReadyBtn.addEventListener('click', () => {
+  if (state.cameraMode) {
+    initCamera(previewVideo, null);
+    cameraPreview.style.display = 'block';
+  }
+  startGame();
+});
+
+calibrationSkipBtn.addEventListener('click', () => {
+  stopCamera();
+  state.cameraMode = false;
+  startGame();
+});
+
+function startGame() {
+  // Stop calibration camera
+  if (calibrationVideo.srcObject) {
+    try {
+      calibrationVideo.srcObject.getTracks().forEach(t => t.stop());
+    } catch (e) {}
+    calibrationVideo.srcObject = null;
+  }
+
+  state.score = 0;
+  state.combo = 0;
+  state.maxCombo = 0;
+  state.lives = CONFIG.maxLives;
+  state.perfects = 0;
+  state.goods = 0;
+  state.misses = 0;
+  state.hitNotes = 0;
+  state.nextNoteIndex = 0;
+  state.processedNotes = new Set();
+  state.lastTapTime = 0;
+  state.fingerCurled = true;
+  state.prevFingerCurled = true;
+  hitEffects = [];
+
+  // Re-generate notes for fresh game
+  state.notes = generateNotes(state.beats);
+
+  startAudio(state.audioBuffer, 0);
+  showGame();
+}
+
+// ============================================================
+// GAME OVER BUTTONS
+// ============================================================
+replayBtn.addEventListener('click', startGame);
+menuBtn.addEventListener('click', showMenu);
+
+// ============================================================
+// KEYBOARD
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (['1', '2', '3', '4'].includes(e.key)) {
+    state.keysPressed[e.key] = true;
+    state.cameraMode = false;
+    e.preventDefault();
+  }
+  if (e.key === 'Enter' || e.key === ' ') {
+    if (state.gameStatus === 'gameover') {
+      startGame();
+      e.preventDefault();
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (['1', '2', '3', '4'].includes(e.key)) {
+    state.keysPressed[e.key] = false;
+    e.preventDefault();
+  }
+});
+
+// ============================================================
+// ROUND RECT POLYFILL
+// ============================================================
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    return this;
+  };
+}
+
+// ============================================================
+// INIT
+// ============================================================
+console.log('MaJc Tiles - Magic Tiles 3 Clone with Camera');
+console.log('Camera: move hand left/right, flick index finger to tap');
+console.log('Keyboard: 1 2 3 4');
+
+})();
 </script>
-<script src="camera.js"></script>
-<script src="game.js"></script>
 </body>
 </html>
