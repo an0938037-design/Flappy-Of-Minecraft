@@ -204,8 +204,9 @@ h1 {
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(480px, 85vw);
-  height: 130px;
+  width: min(400px, 75vw);
+  aspect-ratio: 4 / 3;
+  max-height: 35vh;
   border-radius: 8px;
   overflow: hidden;
   border: 2px solid rgba(255,255,255,0.1);
@@ -458,15 +459,15 @@ const countdownText = document.getElementById('countdownText');
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  buildCameraZones();
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // Build camera zone lines and labels
 function buildCameraZones() {
-  const existing = cameraPreview.querySelectorAll('.camera-zone-line, .camera-zone-label, .camera-hand-icon');
+  const existing = cameraPreview.querySelectorAll('.camera-zone-line, .camera-zone-label');
   existing.forEach(el => el.remove());
-  const w = cameraPreview.clientWidth || 360;
   for (let i = 1; i < CONFIG.lanes; i++) {
     const line = document.createElement('div');
     line.className = 'camera-zone-line';
@@ -478,11 +479,10 @@ function buildCameraZones() {
     label.className = 'camera-zone-label';
     label.style.left = (i / CONFIG.lanes * 100) + '%';
     label.style.width = (100 / CONFIG.lanes) + '%';
-    label.textContent = i + 1;
+    label.textContent = 'L' + (i + 1);
     cameraPreview.appendChild(label);
   }
 }
-cameraPreview.addEventListener('transitionend', buildCameraZones);
 
 // ============================================================
 // BEAT DETECTION
@@ -703,21 +703,12 @@ async function initCamera(videoEl, callback) {
 
       // Draw preview overlay
       if (cameraPreview.style.display !== 'none') {
-        previewOverlay.width = previewOverlay.clientWidth || 480;
-        previewOverlay.height = previewOverlay.clientHeight || 130;
+        const cw = previewOverlay.clientWidth || 400;
+        const ch = previewOverlay.clientHeight || 300;
+        previewOverlay.width = cw;
+        previewOverlay.height = ch;
         const pctx = previewCtx;
-        pctx.clearRect(0, 0, previewOverlay.width, previewOverlay.height);
-
-        // Draw zone lines
-        for (let i = 1; i < CONFIG.lanes; i++) {
-          const x = (i / CONFIG.lanes) * previewOverlay.width;
-          pctx.strokeStyle = 'rgba(255,255,255,0.2)';
-          pctx.lineWidth = 1;
-          pctx.beginPath();
-          pctx.moveTo(x, 0);
-          pctx.lineTo(x, previewOverlay.height);
-          pctx.stroke();
-        }
+        pctx.clearRect(0, 0, cw, ch);
 
         // Draw hands
         if (results.multiHandLandmarks) {
@@ -729,19 +720,21 @@ async function initCamera(videoEl, callback) {
             drawConnectors(pctx, lm, HAND_CONNECTIONS, { color, lineWidth: 1.5 });
             for (const p of lm) {
               pctx.beginPath();
-              pctx.arc(p.x * previewOverlay.width, p.y * previewOverlay.height, 2.5, 0, Math.PI * 2);
+              pctx.arc(p.x * cw, p.y * ch, 2.5, 0, Math.PI * 2);
               pctx.fillStyle = color;
               pctx.fill();
             }
 
-            // Lane highlight bar at bottom
+            // Lane highlight bar (mirrored position due to scaleX(-1))
             if (lane >= 0) {
-              const lx = (lane / CONFIG.lanes) * previewOverlay.width;
-              const lw = previewOverlay.width / CONFIG.lanes;
+              // scaleX(-1) mirrors the canvas: canvas pos 0 = visual right edge
+              // visual left edge of zone L is at canvas pos (1 - L/4) * cw
+              const lx = (1 - (lane + 1) / CONFIG.lanes) * cw;
+              const lw = cw / CONFIG.lanes;
               pctx.fillStyle = h === 0 ? 'rgba(255,217,61,0.2)' : 'rgba(107,203,119,0.2)';
-              pctx.fillRect(lx, previewOverlay.height - 8, lw, 8);
+              pctx.fillRect(lx, ch - 8, lw, 8);
               pctx.fillStyle = color;
-              pctx.fillRect(lx, previewOverlay.height - 8, lw, 3);
+              pctx.fillRect(lx, ch - 8, lw, 3);
             }
           }
         }
@@ -976,7 +969,7 @@ function render() {
   ctx.save();
 
   // Score (moved down a bit since camera is at top)
-  const scoreY = 100;
+  const scoreY = state.cameraMode ? 220 : 60;
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 32px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'left';
