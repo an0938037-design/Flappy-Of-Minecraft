@@ -418,6 +418,7 @@ const state = {
   prevKeyState: { '1': false, '2': false, '3': false, '4': false },
   nextNoteIndex: 0,
   countdown: 0,
+  countdownActive: false,
 };
 
 // ============================================================
@@ -1050,7 +1051,7 @@ function gameLoop(time) {
   lastTime = time;
 
   // Countdown
-  if (state.countdown > 0) {
+  if (state.countdownActive) {
     state.countdown -= dt;
     const display = Math.ceil(state.countdown);
     countdownOverlay.style.display = 'flex';
@@ -1062,6 +1063,7 @@ function gameLoop(time) {
       countdownText.className = 'countdown-go';
       if (state.countdown <= -0.5) {
         countdownOverlay.style.display = 'none';
+        state.countdownActive = false;
         state.countdown = 0;
         startAudio(state.audioBuffer, 0);
       }
@@ -1118,6 +1120,8 @@ function showGameOver() {
   stopCamera();
   cameraPreview.style.display = 'none';
   countdownOverlay.style.display = 'none';
+  state.countdownActive = false;
+  state.countdown = 0;
 }
 
 function showMenu() {
@@ -1138,6 +1142,7 @@ function showMenu() {
   state.coveredLanes = new Set();
   state.handLanes = [];
   state.countdown = 0;
+  state.countdownActive = false;
   loadingBar.style.width = '0%';
   stopAudio();
   stopCamera();
@@ -1254,6 +1259,7 @@ function startGame() {
   state.notes = generateNotes(state.beats);
 
   state.countdown = CONFIG.readyDelay;
+  state.countdownActive = true;
   showGame();
 }
 
